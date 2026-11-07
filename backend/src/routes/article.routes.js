@@ -2,35 +2,35 @@ const express = require("express");
 const router = express.Router();
 
 const authenticateToken = require("../middlewares/auth.middleware");
-
+const articleController = require("../controllers/article.controller");
 const { requireArticleOwner } = require("../middlewares/ownership.middleware");
 
-// Contoh route edit artikel
+// Artikel milik user (harus diletakkan sebelum /:articleId)
+router.get("/my", authenticateToken, articleController.getMyArticles);
+
+// Daftar artikel publik
+router.get("/", articleController.getPublishedArticles);
+
+// Membuat artikel
+router.post("/", authenticateToken, articleController.createArticle);
+
+// Detail artikel publik
+router.get("/:articleId", articleController.getPublishedArticle);
+
+// Update artikel (hanya bisa dilakukan oleh pemilik artikel)
 router.put(
   "/:articleId",
   authenticateToken,
   requireArticleOwner,
-  (req, res) => {
-    res.json({
-      success: true,
-      message: "Ownership verified. Ready to update article.",
-      articleId: req.article.id,
-    });
-  },
+  articleController.updateArticle,
 );
 
-// Contoh route hapus artikel
+// Delete artikel (hanya bisa dilakukan oleh pemilik artikel)
 router.delete(
   "/:articleId",
   authenticateToken,
   requireArticleOwner,
-  (req, res) => {
-    res.json({
-      success: true,
-      message: "Ownership verified. Ready to delete article.",
-      articleId: req.article.id,
-    });
-  },
+  articleController.deleteArticle,
 );
 
 module.exports = router;
