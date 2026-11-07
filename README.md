@@ -6,9 +6,9 @@ RuangKata adalah platform publikasi artikel berbasis web yang memungkinkan pengg
 
 Dokumentasi ini menjadi acuan awal bersama untuk frontend dan backend. Status implementasi yang dicatat di dalamnya mengikuti kondisi proyek per 7 November 2026.
 
-- **Sudah diimplementasikan dan diuji:** setup backend dasar, koneksi Prisma ke PostgreSQL, register, login, logout, refresh token rotation, dan reuse detection.
-- **Sudah disepakati, perlu dilanjutkan:** middleware autentikasi, authorization/ownership check, endpoint artikel, komentar, like, bookmark, serta integrasi frontend.
-- **Rencana arsitektur:** satu layanan Render untuk menyajikan frontend build dan Express API; Supabase untuk PostgreSQL dan penyimpanan gambar.
+- Sudah diimplementasikan dan diuji: setup backend dasar, koneksi Prisma ke PostgreSQL, register, login, logout, refresh token rotation, dan reuse detection.
+- Sudah disepakati, perlu dilanjutkan: middleware autentikasi, authorization/ownership check, endpoint artikel, komentar, like, bookmark, serta integrasi frontend.
+- Rencana arsitektur: satu layanan Render untuk menyajikan frontend build dan Express API; Supabase untuk PostgreSQL dan penyimpanan gambar.
 
 Dokumentasi ini tidak berarti semua endpoint atau fitur sudah tersedia. Lihat status masing-masing bagian sebelum mengintegrasikan fitur.
 
@@ -16,7 +16,7 @@ Dokumentasi ini tidak berarti semua endpoint atau fitur sudah tersedia. Lihat st
 
 | Layer             | Teknologi                               |
 | ----------------- | --------------------------------------- |
-| Frontend          | React, Vite, TypeScript                 |
+| Frontend          | React, Vite, JavaScript                 |
 | Backend           | Node.js, Express.js                     |
 | ORM               | Prisma 6.19.3                           |
 | Database          | PostgreSQL (Supabase)                   |
@@ -28,9 +28,9 @@ Dokumentasi ini tidak berarti semua endpoint atau fitur sudah tersedia. Lihat st
 
 ```text
 ruangkata/
-├── frontend/                 # React + Vite + TypeScript
-├── backend/                 # Express API + Prisma
-├── docs/                   # Project documentation
+├── frontend/    # React + Vite + JavaScript
+├── backend/     # Express API + Prisma
+├── docs/        # Project documentation
 ├── README.md
 └── .gitignore
 ```

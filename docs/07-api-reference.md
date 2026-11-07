@@ -1,18 +1,18 @@
-# 07 — API Reference
+# 07: API Reference
 
 ## 1. Conventions
 
 - Base path: `/api/v1`
-- Request/response format: JSON unless an endpoint handles multipart upload.
+- Format request/response: JSON, kecuali endpoint yang menangani multipart upload.
 - Authentication: `Authorization: Bearer <accessToken>`.
-- Refresh token is sent by the browser as an HttpOnly cookie.
-- Endpoint availability must be checked against the current backend implementation. Planned endpoints below are not yet guaranteed to exist.
+- Refresh token dikirim browser lewat cookie `HttpOnly`.
+- Ketersediaan endpoint harus dicek terhadap implementasi backend saat ini. Endpoint berstatus planned di bawah belum tentu sudah ada.
 
-## 2. Authentication endpoints
+## 2. Authentication Endpoints
 
 ### POST `/auth/register`
 
-Register a new user.
+Mendaftarkan user baru.
 
 Request:
 
@@ -25,9 +25,9 @@ Request:
 }
 ```
 
-Expected success: `201 Created`.
+Response sukses: `201 Created`.
 
-Response shape (illustrative):
+Bentuk response (ilustrasi):
 
 ```json
 {
@@ -44,13 +44,13 @@ Response shape (illustrative):
 }
 ```
 
-Refresh token is set in an HttpOnly cookie, not returned as a JSON field.
+Refresh token dipasang di cookie HttpOnly dan tidak dikembalikan sebagai field JSON.
 
-Possible errors: `400` invalid input, `409` duplicate email/username.
+Error yang mungkin muncul: `400` input tidak valid, `409` email/username duplikat.
 
 ### POST `/auth/login`
 
-Login with email or username.
+Login dengan email atau username.
 
 Request:
 
@@ -61,66 +61,66 @@ Request:
 }
 ```
 
-Expected success: `200 OK`. Response contains user data and access token; refresh token is set as an HttpOnly cookie.
+Response sukses: `200 OK`. Response berisi data user dan access token; refresh token dipasang sebagai cookie HttpOnly.
 
-Possible error: `401` invalid credentials.
+Error yang mungkin muncul: `401` kredensial tidak valid.
 
 ### POST `/auth/refresh`
 
-Obtain a new access token using the refresh cookie.
+Mengambil access token baru menggunakan refresh cookie.
 
-- No JSON body required.
-- Browser must send credentials/cookies.
-- On success, old refresh token is revoked and a new refresh token is set.
-- Expected success: `200 OK`.
-- Invalid, expired, or revoked token: `401 Unauthorized`.
+- Tidak memerlukan JSON body.
+- Browser harus mengirim credentials/cookie.
+- Jika berhasil, refresh token lama dicabut dan refresh token baru dipasang.
+- Response sukses: `200 OK`.
+- Token tidak valid, expired, atau sudah dicabut: `401 Unauthorized`.
 
 ### POST `/auth/logout`
 
-Revoke the refresh token associated with the cookie and clear the cookie.
+Mencabut refresh token yang terkait dengan cookie dan menghapus cookie tersebut.
 
-- No JSON body required.
-- Expected success: `200 OK`.
-- Logout should be safe to call when no refresh cookie is present.
+- Tidak memerlukan JSON body.
+- Response sukses: `200 OK`.
+- Logout harus aman dipanggil walaupun tidak ada refresh cookie.
 
-## 3. Authentication header example
+## 3. Authentication Header Example
 
 ```http
 Authorization: Bearer <access_token>
 ```
 
-Do not send refresh token in the Authorization header for normal API requests.
+Jangan kirim refresh token di Authorization header pada request API biasa.
 
-## 4. Planned article endpoints
+## 4. Planned Article Endpoints
 
-These are proposed resource routes and must be confirmed in implementation before frontend integration.
+Route resource di bawah masih usulan dan harus dikonfirmasi di implementasi sebelum frontend mengintegrasikannya.
 
-| Method | Path                    | Access        | Purpose                 |
-| ------ | ----------------------- | ------------- | ----------------------- |
-| GET    | `/articles`             | Public        | List published articles |
-| GET    | `/articles/:slug`       | Public        | Article detail          |
-| POST   | `/articles`             | Authenticated | Create article/draft    |
-| PATCH  | `/articles/:id`         | Owner         | Update article          |
-| DELETE | `/articles/:id`         | Owner         | Delete article          |
-| POST   | `/articles/:id/publish` | Owner         | Publish article         |
+| Method | Path                    | Access        | Fungsi                      |
+| ------ | ----------------------- | ------------- | --------------------------- |
+| GET    | `/articles`             | Public        | Daftar artikel terpublikasi |
+| GET    | `/articles/:slug`       | Public        | Detail artikel              |
+| POST   | `/articles`             | Authenticated | Membuat artikel/draft       |
+| PATCH  | `/articles/:id`         | Owner         | Mengubah artikel            |
+| DELETE | `/articles/:id`         | Owner         | Menghapus artikel           |
+| POST   | `/articles/:id/publish` | Owner         | Menerbitkan artikel         |
 
-## 5. Planned interaction endpoints
+## 5. Planned Interaction Endpoints
 
-| Method | Path                     | Access        | Purpose            |
-| ------ | ------------------------ | ------------- | ------------------ |
-| GET    | `/articles/:id/comments` | Public        | List comments      |
-| POST   | `/articles/:id/comments` | Authenticated | Add comment        |
-| DELETE | `/comments/:id`          | Owner         | Delete own comment |
-| PUT    | `/articles/:id/like`     | Authenticated | Like article       |
-| DELETE | `/articles/:id/like`     | Authenticated | Unlike article     |
-| PUT    | `/articles/:id/bookmark` | Authenticated | Bookmark article   |
-| DELETE | `/articles/:id/bookmark` | Authenticated | Remove bookmark    |
+| Method | Path                     | Access        | Fungsi                     |
+| ------ | ------------------------ | ------------- | -------------------------- |
+| GET    | `/articles/:id/comments` | Public        | Daftar komentar            |
+| POST   | `/articles/:id/comments` | Authenticated | Menambah komentar          |
+| DELETE | `/comments/:id`          | Owner         | Menghapus komentar sendiri |
+| PUT    | `/articles/:id/like`     | Authenticated | Like artikel               |
+| DELETE | `/articles/:id/like`     | Authenticated | Unlike artikel             |
+| PUT    | `/articles/:id/bookmark` | Authenticated | Bookmark artikel           |
+| DELETE | `/articles/:id/bookmark` | Authenticated | Hapus bookmark             |
 
-Final paths, pagination, sorting, response envelopes, and validation errors must be agreed by frontend/backend before implementation.
+Path final, pagination, sorting, response envelope, dan error validasi harus disepakati frontend dan backend sebelum implementasi.
 
-## 6. Error response convention
+## 6. Error Response Convention
 
-Recommended consistent shape:
+Bentuk yang direkomendasikan agar konsisten:
 
 ```json
 {
@@ -129,4 +129,4 @@ Recommended consistent shape:
 }
 ```
 
-Do not expose stack traces, SQL details, secrets, or internal exception messages in production.
+Jangan ekspos stack trace, detail SQL, secret, atau pesan exception internal di production.

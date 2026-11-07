@@ -1,22 +1,21 @@
-# 04 — Frontend Guide
+# 04: Frontend Guide
 
-## 1. Stack
+## 1. Tech Stack
 
 - React
 - Vite
-- TypeScript
+- JavaScript
 
 Frontend bertanggung jawab atas tampilan, navigasi, validasi UX, state sesi, dan komunikasi HTTP ke backend.
 
-## 2. Prinsip integrasi
+## 2. Integration Principle
 
 - Gunakan Express REST API sebagai satu-satunya sumber data aplikasi.
 - Jangan query tabel Supabase secara langsung dari browser.
 - Jangan letakkan database password atau Supabase service-role key di environment frontend.
 - Simpan base URL API melalui environment variable frontend.
-- Gunakan tipe TypeScript untuk request/response API.
 
-## 3. Authentication state
+## 3. Authentication State
 
 Rekomendasi pengelolaan token:
 
@@ -27,7 +26,7 @@ Rekomendasi pengelolaan token:
 
 Contoh request login:
 
-```ts
+```js
 const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
@@ -39,9 +38,9 @@ const data = await response.json();
 // Simpan data.accessToken di memory/state aplikasi.
 ```
 
-Contoh request privat:
+Contoh request private:
 
-```ts
+```js
 const response = await fetch(`${API_BASE_URL}/api/v1/articles`, {
   headers: {
     Authorization: `Bearer ${accessToken}`,
@@ -49,7 +48,7 @@ const response = await fetch(`${API_BASE_URL}/api/v1/articles`, {
 });
 ```
 
-## 4. Session bootstrap and refresh
+## 4. Session Boostrap and Refresh
 
 Saat aplikasi pertama kali dibuka atau halaman di-refresh:
 
@@ -63,16 +62,16 @@ Karena refresh token menggunakan rotation, implementasikan single-flight refresh
 
 Jangan menganggap setiap 401 pasti berarti access token expired. Response 401 dari login, refresh, atau endpoint lain harus ditangani sesuai konteks.
 
-## 5. Markdown content
+## 5. Markdown Content
 
 - Editor dapat menggunakan Markdown sebagai format konten.
 - Preview harus merepresentasikan hasil render yang aman.
 - HTML hasil render harus disanitasi.
 - Jangan menyisipkan raw HTML dari user ke DOM tanpa sanitasi.
 
-## 6. Suggested frontend modules
+## 6. Suggested Front-End Modules
 
-Struktur ini rekomendasi, bukan keharusan:
+Struktur ini hanya rekomendasi:
 
 ```text
 src/
@@ -87,11 +86,10 @@ src/
 ├── lib/
 │   └── api/
 ├── hooks/
-├── types/
 └── pages/
 ```
 
-## 7. Current integration status
+## 7. Current Integration Status
 
 - Auth endpoint: tersedia di backend dan perlu diuji terhadap response aktual.
 - Article/comment/like/bookmark endpoint: belum dinyatakan tersedia; tunggu kontrak API diperbarui.

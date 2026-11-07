@@ -1,24 +1,24 @@
-# 06 — Database
+# 06: Database
 
 ## 1. Database
 
-Database: PostgreSQL on Supabase. Prisma is used as the ORM and migration tool.
+Menggunakan PostgreSQL di Supabase. Prisma digunakan sebagai ORM dan alat migration.
 
 ## 2. Tables
 
-The initial application schema contains six core tables, with `refresh_tokens` added for session management.
+Schema awal aplikasi berisi enam tabel inti, ditambah `refresh_tokens` untuk manajemen sesi.
 
-| Table            | Purpose                                           |
+| Table            | Fungsi                                            |
 | ---------------- | ------------------------------------------------- |
-| `users`          | User account and profile                          |
-| `categories`     | Article categories                                |
-| `articles`       | Article content and publishing state              |
-| `comments`       | Comments attached to articles                     |
-| `likes`          | User likes on articles                            |
-| `bookmarks`      | User bookmarks                                    |
-| `refresh_tokens` | Hashed refresh-token records and revocation state |
+| `users`          | Akun dan profil pengguna                          |
+| `categories`     | Kategori artikel                                  |
+| `articles`       | Konten artikel dan status publikasi artikel       |
+| `comments`       | Komentar user pada artikel                        |
+| `likes`          | Like milik user pada artikel                      |
+| `bookmarks`      | Bookmark artikel user                             |
+| `refresh_tokens` | Record refresh token (hash) dan status pencabutan |
 
-## 3. Main relationships
+## 3. Main Relationships
 
 ```text
 users 1 ─── * articles
@@ -27,74 +27,72 @@ users 1 ─── * likes
 users 1 ─── * bookmarks
 users 1 ─── * refresh_tokens
 
-categories 1 ─── * articles (article category is optional)
+categories 1 ─── * articles (kategori artikel bersifat opsional)
 
 articles 1 ─── * comments
 articles 1 ─── * likes
 articles 1 ─── * bookmarks
 ```
 
-## 4. Important constraints
+## 4. Important Constraints
 
 - `users.email` unique.
 - `users.username` unique.
-- `categories.name` and `categories.slug` unique.
+- `categories.name` dan `categories.slug` unque.
 - `articles.slug` unique.
-- `likes` unique on `(user_id, article_id)`.
-- `bookmarks` unique on `(user_id, article_id)`.
+- `likes` unique pada `(user_id, article_id)`.
+- `bookmarks` unique pada `(user_id, article_id)`.
 - `refresh_tokens.token_hash` unique.
-- Foreign keys use UUID identifiers.
-- Deleting a user cascades to their dependent records.
-- Deleting a category sets an article's category reference to null.
+- Foreign key menggunakan UUID.
+- Menghapus user ikut menghapus data turunannya (cascade).
+- Menghapus kategori mengosongkan referensi kategori pada artikel terkait (set null).
 
-Refer to `prisma/schema.prisma` as the source of truth for exact field definitions and database mappings.
+Gunakan `prisma/schema.prisma` sebagai sumber kebenaran untuk definisi field dan database mapping yang tepat.
 
-## 5. Article fields and content
+## 5. Article Fields and Content
 
-Article content is stored in `content_markdown` as text. Article status uses:
+Konten artikel disimpan di `content_markdown` sebagai text. Status artikel memakai:
 
 - `DRAFT`
 - `PUBLISHED`
 
-`published_at` is nullable and records the publication time when an article is published. Cover image data is stored as a Storage path, not binary data.
+`published_at` bersifat nullable dan mencatat waktu publikasi saat artikel diterbitkan. Cover image disimpan sebagai path Storage, bukan data binary.
 
 ## 6. Refresh token storage
 
-The `refresh_tokens` table stores:
+Tabel `refresh_tokens` menyimpan:
 
-- UUID record ID.
-- User foreign key.
-- SHA-256 hash of the refresh token.
-- Expiration timestamp.
-- Optional revocation timestamp.
-- Creation timestamp.
-
-Never store the raw refresh token in PostgreSQL.
+- ID record (UUID).
+- Foreign key ke user.
+- Hash SHA-256 dari refresh token.
+- Waktu kedaluwarsa.
+- Waktu pencabutan (opsional).
+- Waktu pembuatan.
 
 ## 7. Prisma and Supabase connection URLs
 
-Environment variables:
+Environment variable:
 
-- `DATABASE_URL`: runtime connection string; transaction pooler may use port 6543.
-- `DIRECT_URL`: direct/session connection for migration operations; use a connection compatible with Prisma migrations, commonly port 5432.
+- `DATABASE_URL`: connection string untuk runtime; transaction pooler dapat memakai port 6543.
+- `DIRECT_URL`: koneksi direct/session untuk operasi migration; gunakan koneksi yang kompatibel dengan Prisma migration, umumnya port 5432.
 
-In the current Prisma 6 setup, check both `prisma.config.ts` and `schema.prisma` so migration commands use the intended direct URL. Do not commit actual connection strings.
+Pada setup Prisma 6 saat ini, periksa `prisma.config.ts` dan `schema.prisma` agar perintah migration memakai direct URL yang dimaksud. Jangan commit connection string asli.
 
 ## 8. Row Level Security
 
-RLS is enabled for application tables and direct `anon`/`authenticated` table privileges are revoked as configured in Supabase.
+RLS diaktifkan pada tabel aplikasi, dan privilege tabel langsung untuk `anon`/`authenticated` dicabut sesuai konfigurasi di Supabase.
 
-The backend uses a privileged database connection. This may bypass RLS. Therefore:
+Backend memakai koneksi database dengan privilege tinggi, sehingga koneksi ini dapat melewati RLS. Karena itu:
 
-- Never expose privileged DB credentials to frontend.
-- Enforce authentication and ownership in Express.
-- Apply the same RLS/revoke policy to newly created tables where appropriate.
-- Review default privileges when adding tables or sequences.
+- Jangan pernah meng-expose credential database dengan privilege ke frontend.
+- Terapkan authentication dan ownership check di Express.
+- Terapkan kebijakan RLS/revoke yang sama pada tabel baru bila sesuai.
+- Tinjau default privileges saat menambah tabel atau sequence.
 
 ## 9. Migration policy
 
-- Every schema change should have a named migration.
-- Commit migration files with the code change.
-- Do not edit an already-applied migration in a shared environment; create a new migration.
-- Review generated SQL before applying sensitive schema changes.
-- Keep this document aligned with `schema.prisma` and migration history.
+- Setiap perubahan schema harus punya migration dengan nama.
+- Commit file migration bersama perubahan kodenya.
+- Jangan edit migration yang sudah diterapkan di environment bersama; buat migration baru.
+- Review SQL hasil generate sebelum menerapkan perubahan schema yang sensitif.
+- Jaga dokumen ini tetap selaras dengan `schema.prisma` dan riwayat migration.

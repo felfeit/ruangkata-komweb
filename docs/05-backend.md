@@ -1,8 +1,8 @@
-# 05 — Backend Guide
+# 05: Backend Guide
 
-## 1. Stack and responsibilities
+## 1. Tech Stack and Responsibilities
 
-Backend menggunakan Node.js, Express.js, Prisma 6.19.3, PostgreSQL, JWT, dan Supabase Storage.
+Backend menggunakan Node.js, Express.js, Prisma 6.19.3, PostgreSQL, JSON Web Token, dan Supabase Storage.
 
 Backend bertanggung jawab atas:
 
@@ -31,9 +31,7 @@ prisma/
 └── migrations/
 ```
 
-Pertahankan struktur aktual jika sudah berbeda; yang penting tanggung jawab tiap layer jelas.
-
-## 3. Layer responsibilities
+## 3. Layer Responsibiliie
 
 - Routes: memetakan HTTP method/path ke middleware dan controller.
 - Middleware: autentikasi, authorization, validasi umum, dan error handling.
@@ -85,39 +83,4 @@ Sebelum API dianggap siap:
 - Sanitasi konten Markdown saat render.
 - Jangan mengembalikan password hash atau token hash.
 - Jangan log password, token, cookie, atau secret.
-- Gunakan error response yang konsisten.
-- Tambahkan CORS hanya untuk origin yang dibutuhkan jika origin terpisah.
-- Tinjau CSRF jika konfigurasi cookie menjadi cross-site.
-
-## 7. Prisma workflow
-
-Setelah mengubah schema:
-
-```bash
-npx prisma format
-npx prisma validate
-npx prisma migrate dev --name descriptive_migration_name
-npx prisma generate
-```
-
-Perintah generate juga dapat dijalankan secara terpisah setelah perubahan schema. Pastikan generator output dan import Prisma Client di `src/config/prisma.js` konsisten.
-
-Untuk deployment, gunakan migration deploy yang sesuai, bukan `migrate dev`.
-
-## 8. Current status
-
-Implemented and tested:
-
-- Express app/server bootstrap.
-- Prisma Client generation and database connection setup.
-- Register/login/logout.
-- Refresh token rotation and reuse detection.
-
-Next:
-
-- Finalize and test access-token middleware.
-- Add authorization and ownership checks.
-- Implement article endpoints.
-- Implement comments, likes, bookmarks.
-- Implement image upload integration.
-- Add automated tests and operational hardening.
+- Gunakan error response yang

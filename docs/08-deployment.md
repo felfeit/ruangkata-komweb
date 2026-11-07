@@ -1,18 +1,18 @@
-# 08 — Development Guide
+# 08: Development Guide
 
 ## 1. Prerequisites
 
-- Node.js (use the version agreed by the team; local development currently uses Node.js 24).
+- Node.js (gunakan versi yang disepakati tim; saat ini development lokal memakai Node.js 24).
 - npm.
 - Git.
-- Supabase project with PostgreSQL and Storage.
-- Postman or equivalent API client.
+- Project Supabase dengan PostgreSQL dan Storage.
+- Postman atau API client yang setara.
 
-## 2. Environment variables
+## 2. Environment Variables
 
-Backend `.env` is local-only and must not be committed. Keep `.env.example` with placeholder values.
+`.env` backend hanya untuk lokal dan tidak boleh di-commit. Simpan `.env.example` dengan nilai placeholder.
 
-Typical variables:
+Variabel yang umum dipakai:
 
 ```env
 NODE_ENV=development
@@ -27,19 +27,19 @@ JWT_ACCESS_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=14d
 ```
 
-Storage variables should be added when the upload service is implemented. Keep service-role credentials exclusively on the backend.
+Variabel Storage ditambahkan saat upload service diimplementasikan. Credential service-role hanya boleh ada di backend.
 
-Generate independent JWT secrets locally, for example:
+Buat JWT secret yang independen secara lokal, misalnya:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 ```
 
-Run the command twice to create separate access and refresh secrets. Never paste real secrets into GitHub, chat, screenshots, or frontend environment files.
+Jalankan perintah ini dua kali untuk mendapatkan secret access dan refresh yang berbeda. Jangan pernah menempelkan secret asli ke GitHub, chat, screenshot, atau environment frontend.
 
-## 3. Backend setup
+## 3. Backend Setup
 
-From the backend directory:
+Dari direktori backend:
 
 ```bash
 npm install
@@ -47,51 +47,51 @@ npx prisma validate
 npx prisma generate
 ```
 
-For a new local/database environment, run migrations using the configured direct connection:
+Untuk environment lokal/database yang baru, jalankan migration menggunakan koneksi direct yang sudah dikonfigurasi:
 
 ```bash
 npx prisma migrate dev
 ```
 
-Start the server using the project script if defined, otherwise:
+Jalankan server dengan script project jika sudah ada, atau gunakan:
 
 ```bash
 node src/server.js
 ```
 
-Expected local API base URL:
+Base URL API lokal yang diharapkan:
 
 ```text
 http://localhost:5000/api/v1
 ```
 
-## 4. Frontend setup
+## 4. Frontend Setup
 
-From the frontend directory:
+Dari direktori frontend:
 
 ```bash
 npm install
 npm run dev
 ```
 
-Configure the frontend API base URL for local development. If frontend and backend run on different origins, configure Express CORS to allow the frontend origin and credentials. Do not use wildcard origin with credentialed cookies.
+Atur base URL API frontend untuk development lokal. Jika frontend dan backend berjalan di origin berbeda, konfigurasikan CORS di Express agar mengizinkan origin frontend dan credentials. Jangan gunakan wildcard origin bersama cookie yang membawa credentials.
 
-## 5. Auth smoke test
+## 5. Auth Smoke Test
 
-Use Postman:
+Gunakan Postman:
 
-1. Register with a new email and username.
-2. Login and verify access token response and refresh cookie.
-3. Call refresh and verify the cookie rotates.
-4. Call refresh again using the latest cookie.
-5. Reuse a previously revoked refresh token and verify it is rejected.
-6. Logout and verify the active refresh token is revoked and cookie cleared.
+1. Register dengan email dan username baru.
+2. Login, lalu pastikan response access token dan refresh cookie muncul.
+3. Panggil refresh dan pastikan cookie dirotasi.
+4. Panggil refresh sekali lagi dengan cookie terbaru.
+5. Gunakan ulang refresh token yang sudah dicabut dan pastikan ditolak.
+6. Logout, lalu pastikan refresh token aktif dicabut dan cookie dihapus.
 
-The rotation and reuse-detection scenarios have been reported as passing in the current development environment. Repeat them after changes to auth code.
+Skenario rotation dan reuse detection sudah dilaporkan lolos di environment development saat ini. Ulangi skenario tersebut setiap kali kode auth berubah.
 
-## 6. Git workflow
+## 6. Git Workflow
 
-Suggested workflow:
+Alur yang disarankan:
 
 ```bash
 git status
@@ -100,32 +100,32 @@ git commit -m "docs: add project documentation"
 git push origin main
 ```
 
-If the team uses feature branches, create a documentation branch and open a pull request instead. Confirm that `.env` and other secrets are not staged before committing:
+Jika tim memakai feature branch, buat branch dokumentasi lalu buka pull request. Pastikan `.env` dan secret lain tidak ter-stage sebelum commit:
 
 ```bash
 git status
 git diff --cached
 ```
 
-## 7. Team workflow
+## 7. Team Workflow
 
-- Frontend: implement UI against the agreed API contract.
-- Backend: implement API and update the API reference when behavior changes.
-- Both sides: discuss breaking changes before changing request/response shapes.
-- Database changes: backend creates and commits Prisma migrations; update database documentation.
-- Test: record reproducible steps and expected outcomes for each completed feature.
+- Frontend: implementasikan UI sesuai kontrak API yang disepakati.
+- Backend: implementasikan API dan perbarui API reference saat perilakunya berubah.
+- Kedua sisi (Frontend & Backend): diskusikan breaking change sebelum mengubah bentuk request/response.
+- Perubahan database: backend membuat dan meng-commit migration Prisma; perbarui dokumentasi database.
+- Test: catat langkah yang bisa direproduksi dan hasil yang diharapkan untuk setiap fitur yang selesai.
 
-## 8. Pre-push checklist
+## 8. Pre-push Checklist
 
-- [ ] README and docs accurately distinguish implemented vs planned features.
-- [ ] No `.env` or credentials are staged.
-- [ ] Prisma schema and migration files are committed if relevant.
-- [ ] API paths in frontend match the current API reference.
-- [ ] Any changed endpoint contract is documented.
-- [ ] `git diff --cached` has been reviewed.
+- [ ] README dan docs membedakan dengan akurat fitur yang sudah implemented dan yang masih planned.
+- [ ] Tidak ada `.env` atau credential yang ter-stage.
+- [ ] File schema Prisma dan migration sudah di-commit jika relevan.
+- [ ] Path API di frontend sesuai dengan API reference saat ini.
+- [ ] Setiap perubahan kontrak endpoint sudah didokumentasikan.
+- [ ] `git diff --cached` sudah ditinjau.
 
-## 9. Deployment notes
+## 9. Deployment Notes
 
-Target deployment is a single Render Web Service serving the built frontend and Express API from one origin. Confirm the actual build and start commands, static file serving, SPA fallback, environment variables, and health check before deployment. Use production environment variables in Render, not committed files.
+Target deployment adalah satu Render Web Service yang melayani frontend hasil build dan Express API dari satu origin. Konfirmasi perintah build dan start yang sebenarnya, static file serving, SPA fallback, environment variable, dan health check sebelum deploy. Gunakan environment variable production di Render, bukan file yang di-commit.
 
-For production database changes, apply committed migrations using the deployment migration workflow (for Prisma, typically `prisma migrate deploy`). Do not run development migration commands against production.
+Untuk perubahan database di production, terapkan migration yang sudah di-commit lewat workflow migration untuk deployment (pada Prisma, biasanya `prisma migrate deploy`). Jangan jalankan perintah migration untuk development di production.
