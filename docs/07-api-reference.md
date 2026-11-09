@@ -1,18 +1,53 @@
 # 07: API Reference
 
-## 1. Conventions
+## 1. API Conventions
 
-- Base path: `/api/v1`
-- Format request/response: JSON, kecuali endpoint yang menangani multipart upload.
-- Authentication: `Authorization: Bearer <accessToken>`.
-- Refresh token dikirim browser lewat cookie `HttpOnly`.
-- Ketersediaan endpoint harus dicek terhadap implementasi backend saat ini. Endpoint berstatus planned di bawah belum tentu sudah ada.
+Base URL:
+
+```text
+/api/v1
+```
+
+Format request dan response menggunakan JSON, kecuali endpoint yang menangani multipart upload.
+
+Authentication menggunakan:
+
+```http
+Authorization: Bearer <access_token>
+```
+
+Refresh token dikirim melalui cookie HttpOnly dan tidak digunakan sebagai Bearer token pada request API biasa.
+
+### Response Convention
+
+Response sukses umumnya menggunakan:
+
+```json
+{
+  "success": true,
+  "message": "Operation successful",
+  "data": {}
+}
+```
+
+Response error:
+
+```json
+{
+  "success": false,
+  "message": "Human-readable error message"
+}
+```
+
+Endpoint tertentu dapat mengembalikan metadata tambahan seperti `pagination`.
 
 ## 2. Authentication Endpoints
 
 ### POST `/auth/register`
 
 Mendaftarkan user baru.
+
+Access: Public.
 
 Request:
 
@@ -25,13 +60,14 @@ Request:
 }
 ```
 
-Response sukses: `201 Created`.
+Success: `201 Created`.
 
-Bentuk response (ilustrasi):
+Response:
 
 ```json
 {
   "success": true,
+  "message": "User registered successfully",
   "data": {
     "user": {
       "id": "uuid",
@@ -44,13 +80,28 @@ Bentuk response (ilustrasi):
 }
 ```
 
-Refresh token dipasang di cookie HttpOnly dan tidak dikembalikan sebagai field JSON.
+Refresh token dipasang pada cookie HttpOnly dan tidak dikembalikan sebagai field JSON.
 
-Error yang mungkin muncul: `400` input tidak valid, `409` email/username duplikat.
+Validasi:
+
+- Name: 2–100 karakter.
+- Username: 3–30 karakter, huruf kecil, angka, dan underscore.
+- Email: format email valid, maksimal 254 karakter.
+- Password: minimal 8 karakter dan maksimal 72 byte.
+
+Possible errors:
+
+| Status | Kondisi                             |
+| ------ | ----------------------------------- |
+| 400    | Input tidak valid                   |
+| 409    | Email atau username sudah digunakan |
+| 500    | Internal server error               |
 
 ### POST `/auth/login`
 
-Login dengan email atau username.
+Login menggunakan email atau username.
+
+Access: Public.
 
 Request:
 
@@ -61,66 +112,477 @@ Request:
 }
 ```
 
-Response sukses: `200 OK`. Response berisi data user dan access token; refresh token dipasang sebagai cookie HttpOnly.
+Success: `200 OK`.
 
-Error yang mungkin muncul: `401` kredensial tidak valid.
+Response berisi data user dan access token. Refresh token dipasang melalui cookie HttpOnly.
+
+Possible errors:
+
+| Status | Kondisi                |
+| ------ | ---------------------- |
+| 400    | Input tidak valid      |
+| 401    | Kredensial tidak valid |
+| 500    | Internal server error  |
 
 ### POST `/auth/refresh`
 
-Mengambil access token baru menggunakan refresh cookie.
+Memperbarui access token menggunakan refresh cookie.
 
-- Tidak memerlukan JSON body.
-- Browser harus mengirim credentials/cookie.
-- Jika berhasil, refresh token lama dicabut dan refresh token baru dipasang.
-- Response sukses: `200 OK`.
-- Token tidak valid, expired, atau sudah dicabut: `401 Unauthorized`.
+Access: Refresh cookie required.
+
+Request body tidak diperlukan.
+
+Browser harus mengirim cookie yang berlaku.
+
+Success: `200 OK`.
+
+Ketika berhasil:
+
+- Refresh token lama dicabut.
+- Refresh token baru diterbitkan.
+- Cookie refresh token diperbarui.
+- Access token baru dikembalikan.
+
+Possible errors:
+
+| Status | Kondisi                                                       |
+| ------ | ------------------------------------------------------------- |
+| 401    | Refresh token tidak ada, invalid, expired, atau sudah dicabut |
+| 500    | Internal server error                                         |
 
 ### POST `/auth/logout`
 
-Mencabut refresh token yang terkait dengan cookie dan menghapus cookie tersebut.
+Logout dan mencabut refresh token yang digunakan.
 
-- Tidak memerlukan JSON body.
-- Response sukses: `200 OK`.
-- Logout harus aman dipanggil walaupun tidak ada refresh cookie.
+Access: Refresh cookie optional.
 
-## 3. Authentication Header Example
+Request body tidak diperlukan.
+
+Success: `200 OK`.
+
+Backend mencabut refresh token yang terkait dengan cookie jika tersedia dan menghapus cookie pada response.
+
+Endpoint ini dirancang agar tetap aman dipanggil ketika refresh cookie tidak tersedia.
+
+## 3. Authentication Header
+
+Endpoint privat menggunakan header:
 
 ```http
 Authorization: Bearer <access_token>
 ```
 
-Jangan kirim refresh token di Authorization header pada request API biasa.
+Ketentuan:
 
-## 4. Planned Article Endpoints
+- Access token harus valid dan belum kedaluwarsa.
+- Token harus merupakan access token.
+- User yang menjadi subject token harus masih tersedia.
+- Refresh token tidak boleh digunakan pada Authorization header.
 
-Route resource di bawah masih usulan dan harus dikonfirmasi di implementasi sebelum frontend mengintegrasikannya.
+## 4. Article Endpoints
 
-| Method | Path                    | Access        | Fungsi                      |
-| ------ | ----------------------- | ------------- | --------------------------- |
-| GET    | `/articles`             | Public        | Daftar artikel terpublikasi |
-| GET    | `/articles/:slug`       | Public        | Detail artikel              |
-| POST   | `/articles`             | Authenticated | Membuat artikel/draft       |
-| PATCH  | `/articles/:id`         | Owner         | Mengubah artikel            |
-| DELETE | `/articles/:id`         | Owner         | Menghapus artikel           |
-| POST   | `/articles/:id/publish` | Owner         | Menerbitkan artikel         |
+### GET `/articles`
 
-## 5. Planned Interaction Endpoints
+Mendapatkan daftar artikel yang sudah dipublikasikan.
 
-| Method | Path                     | Access        | Fungsi                     |
-| ------ | ------------------------ | ------------- | -------------------------- |
-| GET    | `/articles/:id/comments` | Public        | Daftar komentar            |
-| POST   | `/articles/:id/comments` | Authenticated | Menambah komentar          |
-| DELETE | `/comments/:id`          | Owner         | Menghapus komentar sendiri |
-| PUT    | `/articles/:id/like`     | Authenticated | Like artikel               |
-| DELETE | `/articles/:id/like`     | Authenticated | Unlike artikel             |
-| PUT    | `/articles/:id/bookmark` | Authenticated | Bookmark artikel           |
-| DELETE | `/articles/:id/bookmark` | Authenticated | Hapus bookmark             |
+Access: Public.
 
-Path final, pagination, sorting, response envelope, dan error validasi harus disepakati frontend dan backend sebelum implementasi.
+Query parameters:
 
-## 6. Error Response Convention
+| Parameter | Default | Keterangan                              |
+| --------- | ------: | --------------------------------------- |
+| `page`    |       1 | Nomor halaman                           |
+| `limit`   |      10 | Jumlah artikel per halaman, maksimal 50 |
+| `search`  |       - | Pencarian berdasarkan judul             |
 
-Bentuk yang direkomendasikan agar konsisten:
+Success: `200 OK`.
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid",
+      "title": "Example Article",
+      "slug": "example-article",
+      "contentMarkdown": "...",
+      "status": "PUBLISHED",
+      "publishedAt": "2026-11-08T10:00:00.000Z",
+      "user": {
+        "id": "uuid",
+        "name": "Example User",
+        "username": "example"
+      },
+      "category": null
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 1,
+    "totalPages": 1
+  }
+}
+```
+
+Hanya artikel dengan status `PUBLISHED` yang ditampilkan.
+
+### GET `/articles/:articleId`
+
+Mendapatkan detail artikel berdasarkan slug atau UUID.
+
+Access: Public.
+
+Success: `200 OK`.
+
+Hanya artikel dengan status `PUBLISHED` yang dapat diakses.
+
+Possible errors:
+
+- `404 Not Found`: artikel tidak ditemukan atau masih draft.
+
+### GET `/articles/my`
+
+Mendapatkan daftar artikel milik user yang sedang login.
+
+Access: Authenticated.
+
+Query parameters:
+
+| Parameter | Default | Keterangan                              |
+| --------- | ------: | --------------------------------------- |
+| `page`    |       1 | Nomor halaman                           |
+| `limit`   |      10 | Jumlah artikel per halaman, maksimal 50 |
+| `status`  |       - | Filter `DRAFT` atau `PUBLISHED`         |
+
+Success: `200 OK`.
+
+Endpoint ini dapat menampilkan artikel draft dan published milik user yang terautentikasi.
+
+### POST `/articles`
+
+Membuat artikel baru.
+
+Access: Authenticated.
+
+Request:
+
+```json
+{
+  "title": "Example Article",
+  "contentMarkdown": "# Hello World",
+  "categoryId": null,
+  "status": "DRAFT"
+}
+```
+
+Success: `201 Created`.
+
+Ketentuan:
+
+- Title wajib dan maksimal 255 karakter.
+- Content Markdown wajib diisi.
+- Status harus `DRAFT` atau `PUBLISHED`.
+- Category ID bersifat opsional.
+- User ID diambil dari access token.
+- Slug dibuat secara unik oleh backend.
+
+### PUT `/articles/:articleId`
+
+Memperbarui artikel milik user.
+
+Access: Article Owner.
+
+Request dapat berisi field yang ingin diperbarui.
+
+Contoh:
+
+```json
+{
+  "title": "Updated Article Title",
+  "contentMarkdown": "# Updated Content",
+  "status": "PUBLISHED"
+}
+```
+
+Success: `200 OK`.
+
+Ketentuan:
+
+- Hanya pemilik artikel yang dapat memperbarui artikel.
+- Field yang tidak dikirim tidak perlu diubah.
+- Status harus valid.
+- Slug yang sudah dibuat tidak berubah ketika artikel diperbarui.
+- `publishedAt` diperbarui ketika status publikasi berubah.
+
+Possible errors:
+
+- `400 Bad Request`: input tidak valid.
+- `401 Unauthorized`: access token tidak valid atau tidak tersedia.
+- `404 Not Found`: artikel tidak ditemukan atau bukan milik user.
+- `409 Conflict`: konflik unique constraint.
+
+### DELETE `/articles/:articleId`
+
+Menghapus artikel milik user.
+
+Access: Article Owner.
+
+Success: `200 OK`.
+
+Response:
+
+```json
+{
+  "success": true,
+  "message": "Article deleted successfully",
+  "data": {
+    "id": "uuid"
+  }
+}
+```
+
+Penghapusan artikel juga menghapus komentar, like, dan bookmark terkait melalui cascade database.
+
+## 5. Comment Endpoints
+
+### POST `/comments/articles/:articleId`
+
+Membuat komentar pada artikel.
+
+Access: Authenticated.
+
+Request:
+
+```json
+{
+  "content": "Artikel ini memberikan perspektif yang menarik."
+}
+```
+
+Success: `201 Created`.
+
+Response:
+
+```json
+{
+  "success": true,
+  "message": "Comment created successfully",
+  "data": {
+    "id": "uuid",
+    "userId": "uuid",
+    "articleId": "uuid",
+    "content": "Artikel ini memberikan perspektif yang menarik.",
+    "createdAt": "2026-11-08T10:00:00.000Z",
+    "updatedAt": "2026-11-08T10:00:00.000Z",
+    "author": {
+      "id": "uuid",
+      "name": "Example User",
+      "username": "example"
+    },
+    "article": {
+      "id": "uuid",
+      "title": "Example Article",
+      "slug": "example-article"
+    }
+  }
+}
+```
+
+Business rules:
+
+- User harus login.
+- Article ID berasal dari URL.
+- User ID berasal dari access token.
+- Artikel harus berstatus `PUBLISHED`.
+- Content tidak boleh kosong.
+- Maksimal content adalah 5000 karakter.
+
+Possible errors:
+
+| Status | Kondisi                                               |
+| ------ | ----------------------------------------------------- |
+| 400    | Body tidak valid atau content tidak memenuhi validasi |
+| 401    | Tidak ada access token atau token tidak valid         |
+| 404    | Artikel tidak ditemukan atau belum dipublikasikan     |
+| 500    | Internal server error                                 |
+
+### GET `/comments/articles/:articleId`
+
+Mendapatkan daftar komentar pada artikel.
+
+Access: Public.
+
+Query parameters:
+
+| Parameter | Default | Keterangan                               |
+| --------- | ------: | ---------------------------------------- |
+| `page`    |       1 | Nomor halaman                            |
+| `limit`   |      10 | Jumlah komentar per halaman, maksimal 50 |
+
+Contoh:
+
+```http
+GET /comments/articles/{articleId}?page=1&limit=10
+```
+
+Success: `200 OK`.
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid",
+      "userId": "uuid",
+      "articleId": "uuid",
+      "content": "Artikel yang menarik.",
+      "createdAt": "2026-11-08T10:00:00.000Z",
+      "updatedAt": "2026-11-08T10:00:00.000Z",
+      "author": {
+        "id": "uuid",
+        "name": "Example User",
+        "username": "example"
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 1,
+    "totalPages": 1
+  }
+}
+```
+
+Business rules:
+
+- Tidak membutuhkan access token.
+- Artikel harus berstatus `PUBLISHED`.
+- Komentar diurutkan berdasarkan `createdAt DESC`.
+- Komentar ditampilkan dengan informasi author.
+- Jika belum ada komentar, `data` berupa array kosong.
+
+Possible errors:
+
+- `400 Bad Request`: parameter pagination tidak valid.
+- `404 Not Found`: artikel tidak ditemukan atau belum dipublikasikan.
+
+### PUT `/comments/:commentId`
+
+Memperbarui komentar milik user.
+
+Access: Comment Owner.
+
+Request:
+
+```json
+{
+  "content": "Saya sudah memperbarui komentar ini."
+}
+```
+
+Success: `200 OK`.
+
+Response:
+
+```json
+{
+  "success": true,
+  "message": "Comment updated successfully",
+  "data": {
+    "id": "uuid",
+    "userId": "uuid",
+    "articleId": "uuid",
+    "content": "Saya sudah memperbarui komentar ini.",
+    "createdAt": "2026-11-08T10:00:00.000Z",
+    "updatedAt": "2026-11-08T10:05:00.000Z",
+    "author": {
+      "id": "uuid",
+      "name": "Example User",
+      "username": "example"
+    }
+  }
+}
+```
+
+Business rules:
+
+- User harus login.
+- Hanya pemilik komentar yang dapat mengubah komentar.
+- Update hanya diizinkan dalam 15 menit sejak komentar dibuat.
+- Pengguna dapat mengubah komentar berkali-kali selama batas waktu belum terlewati.
+- Batas waktu dihitung dari `createdAt`, bukan `updatedAt`.
+- Content tidak boleh kosong.
+- Maksimal content adalah 5000 karakter.
+
+Possible errors:
+
+| Status | Kondisi                                        |
+| ------ | ---------------------------------------------- |
+| 400    | Request body atau content tidak valid          |
+| 401    | Access token tidak valid atau tidak tersedia   |
+| 403    | Batas waktu edit 15 menit telah terlewati      |
+| 404    | Komentar tidak ditemukan atau bukan milik user |
+
+### DELETE `/comments/:commentId`
+
+Menghapus komentar milik user.
+
+Access: Comment Owner.
+
+Request body tidak diperlukan.
+
+Success: `200 OK`.
+
+Response:
+
+```json
+{
+  "success": true,
+  "message": "Comment deleted successfully",
+  "data": {
+    "id": "uuid"
+  }
+}
+```
+
+Business rules:
+
+- User harus login.
+- Hanya pemilik komentar yang dapat menghapus komentar.
+- Penghapusan dapat dilakukan kapan saja.
+- Tidak ada batas waktu 15 menit untuk penghapusan.
+- Komentar yang sudah dihapus tidak dapat dihapus kembali.
+
+Possible errors:
+
+| Status | Kondisi                                        |
+| ------ | ---------------------------------------------- |
+| 401    | Access token tidak valid atau tidak tersedia   |
+| 404    | Komentar tidak ditemukan atau bukan milik user |
+| 500    | Internal server error                          |
+
+## 6. Planned Interaction Endpoints
+
+Endpoint berikut belum diimplementasikan.
+
+| Method | Path                            | Access        | Fungsi             |
+| ------ | ------------------------------- | ------------- | ------------------ |
+| PUT    | `/articles/:articleId/like`     | Authenticated | Like artikel       |
+| DELETE | `/articles/:articleId/like`     | Authenticated | Unlike artikel     |
+| PUT    | `/articles/:articleId/bookmark` | Authenticated | Bookmark artikel   |
+| DELETE | `/articles/:articleId/bookmark` | Authenticated | Menghapus bookmark |
+
+Path dan response final untuk fitur tersebut akan ditentukan ketika implementasi dimulai.
+
+## 7. Error Response Convention
+
+Format error umum:
 
 ```json
 {
@@ -129,4 +591,57 @@ Bentuk yang direkomendasikan agar konsisten:
 }
 ```
 
-Jangan ekspos stack trace, detail SQL, secret, atau pesan exception internal di production.
+HTTP status code yang digunakan:
+
+| Status | Makna                                              |
+| ------ | -------------------------------------------------- |
+| 200    | Request berhasil                                   |
+| 201    | Resource berhasil dibuat                           |
+| 400    | Request atau input tidak valid                     |
+| 401    | Authentication diperlukan atau token tidak valid   |
+| 403    | Akses ditolak karena aturan bisnis atau permission |
+| 404    | Resource tidak ditemukan atau bukan milik user     |
+| 409    | Konflik data, misalnya unique constraint           |
+| 500    | Internal server error                              |
+
+Backend tidak boleh mengekspos stack trace, detail SQL, secret, password hash, atau informasi internal lainnya pada production.
+
+## 8. Current API Implementation Status
+
+| Module   | Endpoint                     | Status      |
+| -------- | ---------------------------- | ----------- |
+| Auth     | Register                     | Implemented |
+| Auth     | Login                        | Implemented |
+| Auth     | Refresh                      | Implemented |
+| Auth     | Logout                       | Implemented |
+| Article  | Get Published Articles       | Implemented |
+| Article  | Get Published Article Detail | Implemented |
+| Article  | Get My Articles              | Implemented |
+| Article  | Create Article               | Implemented |
+| Article  | Update Article               | Implemented |
+| Article  | Delete Article               | Implemented |
+| Comment  | Create Comment               | Implemented |
+| Comment  | Get Comments                 | Implemented |
+| Comment  | Update Comment               | Implemented |
+| Comment  | Delete Comment               | Implemented |
+| Like     | Like / Unlike                | Planned     |
+| Bookmark | Create / Delete              | Planned     |
+
+Status `Implemented` menunjukkan endpoint sudah dibuat dalam kode backend. Status tersebut belum berarti seluruh test case telah dijalankan dan dinyatakan lulus.
+
+## 9. API Testing Notes
+
+Sebelum frontend melakukan integrasi, endpoint harus diuji dengan Postman atau Thunder Client.
+
+Pengujian mencakup:
+
+- Validasi request body dan query parameters.
+- Authentication dan token expiration.
+- Authorization dan ownership.
+- Resource not found.
+- Pagination dan sorting.
+- Business rules setiap fitur.
+- Konsistensi HTTP status code dan response.
+- Error handling.
+
+Hasil pengujian aktual harus dicatat secara terpisah dari status implementasi.

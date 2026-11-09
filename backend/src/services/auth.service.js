@@ -139,15 +139,14 @@ async function issueTokens(tx, user) {
 async function register(data) {
   const validated = validateRegisterInput(data);
 
+  // validated sudah berisi nilai yang sudah dinormalisasi
   const { name, username, email, password } = validated;
 
   const existingUser = await prisma.user.findFirst({
     where: {
       OR: [{ email }, { username }],
     },
-    select: {
-      id: true,
-    },
+    select: { id: true },
   });
 
   if (existingUser) {
@@ -160,9 +159,9 @@ async function register(data) {
     return await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
-          name: name.trim(),
-          username: normalizedUsername,
-          email: normalizedEmail,
+          name,
+          username,
+          email,
           passwordHash,
         },
       });
@@ -175,11 +174,9 @@ async function register(data) {
       };
     });
   } catch (error) {
-    // Menangani kemungkinan dua request register bersamaan
     if (error.code === "P2002") {
       throw createError("Email or username is already registered", 409);
     }
-
     throw error;
   }
 }
