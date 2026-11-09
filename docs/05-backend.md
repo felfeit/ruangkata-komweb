@@ -38,6 +38,7 @@ backend/
 │   │   ├── auth.controller.js
 │   │   ├── article.controller.js
 │   │   └── comment.controller.js
+│   │   └── like.controller.js
 │   ├── middlewares/
 │   │   ├── auth.middleware.js
 │   │   └── ownership.middleware.js
@@ -45,10 +46,12 @@ backend/
 │   │   ├── auth.routes.js
 │   │   ├── article.routes.js
 │   │   └── comment.routes.js
+│   │   └── like.routes.js
 │   ├── services/
 │   │   ├── auth.service.js
 │   │   ├── article.service.js
 │   │   └── comment.service.js
+│   │   └── like.service.js
 │   ├── utils/
 │   │   └── token.util.js
 │   ├── app.js
@@ -214,6 +217,45 @@ Comment service menangani operasi:
 - Tidak ada batas waktu penghapusan.
 - Komentar yang tidak ditemukan atau bukan milik pengguna menghasilkan `404 Not Found`.
 
+## 9. Like Module
+
+Like service menangani operasi:
+
+- Create Like.
+- Delete Like.
+- Get Like Count.
+- Get Like Status.
+
+### Like Business Rules
+
+#### Create Like
+
+- Hanya pengguna terautentikasi yang dapat memberikan like.
+- `userId` berasal dari access token.
+- `articleId` berasal dari URL parameter.
+- Like hanya dapat diberikan pada artikel berstatus `PUBLISHED`.
+- Satu pengguna hanya dapat memberikan satu like pada artikel yang sama.
+- Like duplikat menghasilkan `409 Conflict`.
+
+#### Delete Like
+
+- Hanya pengguna terautentikasi yang dapat menghapus like.
+- Penghapusan hanya berlaku pada like milik pengguna tersebut.
+- Unlike dapat dilakukan kapan saja.
+- Jika pengguna belum memberikan like, request tetap berhasil dengan status unlike.
+
+#### Read Like Count
+
+- Dapat diakses secara publik tanpa login.
+- Hanya artikel berstatus `PUBLISHED` yang dapat dihitung.
+- Mengembalikan jumlah seluruh like pada artikel.
+
+#### Read Like Status
+
+- Membutuhkan access token.
+- Status like diperiksa berdasarkan kombinasi `userId` dan `articleId`.
+- Mengembalikan `isLiked: true` jika pengguna sudah memberikan like, dan `false` jika belum.
+
 ## 9. Error Handling
 
 Error handling terpusat berada di `app.js`.
@@ -276,16 +318,16 @@ Jangan pernah membagikan atau meng-commit isi `.env`.
 
 ## 12. Current Implementation Status
 
-| Module         | Status Implementasi     | Status Pengujian                      |
-| -------------- | ----------------------- | ------------------------------------- |
-| Prisma Setup   | Implemented             | Initial migration berhasil            |
-| Authentication | Implemented             | Seluruh simulasi pengujian berhasil   |
-| Article CRUD   | Implemented             | Seluruh simulasi pengujian berhasil   |
-| Comment CRUD   | Implemented             | Seluruh simulasi pengujian berhasil   |
-| Image Upload   | Belum diimplementasikan | Belum diuji                           |
-| Image Deletion | Belum diimplementasikan | Belum diuji                           |
-| Like           | Belum diimplementasikan | Belum diuji                           |
-| Bookmark       | Belum diimplementasikan | Belum diuji                           |
+| Module         | Status Implementasi     | Status Pengujian                    |
+| -------------- | ----------------------- | ----------------------------------- |
+| Prisma Setup   | Implemented             | Initial migration berhasil          |
+| Authentication | Implemented             | Seluruh simulasi pengujian berhasil |
+| Article CRUD   | Implemented             | Seluruh simulasi pengujian berhasil |
+| Comment CRUD   | Implemented             | Seluruh simulasi pengujian berhasil |
+| Image Upload   | Belum diimplementasikan | Seluruh simulasi pengujian berhasil |
+| Image Deletion | Belum diimplementasikan | Belum diuji                         |
+| Like           | Belum diimplementasikan | Belum diuji                         |
+| Bookmark       | Belum diimplementasikan | Belum diuji                         |
 
 Status implementasi berarti kode fitur sudah dibuat, bukan berarti seluruh skenario pengujiannya sudah lulus.
 

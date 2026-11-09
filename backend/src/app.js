@@ -4,6 +4,7 @@ const cookieParser = require("cookie-parser");
 const authRoutes = require("./routes/auth.routes");
 const articleRoutes = require("./routes/article.routes");
 const commentRoutes = require("./routes/comment.routes");
+const likeRoutes = require("./routes/like.routes");
 
 const app = express();
 
@@ -16,8 +17,8 @@ app.use(cookieParser());
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/articles", articleRoutes);
 app.use("/api/v1/comments", commentRoutes);
+app.use("/api/v1/likes", likeRoutes);
 
-// Global error handler
 // Global error handler
 app.use((err, req, res, next) => {
   if (res.headersSent) {

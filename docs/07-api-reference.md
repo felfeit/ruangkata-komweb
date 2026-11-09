@@ -210,7 +210,7 @@ Response:
       "contentMarkdown": "...",
       "status": "PUBLISHED",
       "publishedAt": "2026-11-08T10:00:00.000Z",
-      "user": {
+      "author": {
         "id": "uuid",
         "name": "Example User",
         "username": "example"
@@ -567,20 +567,175 @@ Possible errors:
 | 404    | Komentar tidak ditemukan atau bukan milik user |
 | 500    | Internal server error                          |
 
-## 6. Planned Interaction Endpoints
+## 6. Like Endpoints
 
-Endpoint berikut belum diimplementasikan.
+### POST `/likes/articles/:articleId`
+
+Memberikan like pada artikel.
+
+Access: Authenticated.
+
+Request body tidak diperlukan.
+
+Success: `201 Created`.
+
+Response:
+
+```json
+{
+  "success": true,
+  "message": "Article liked successfully",
+  "data": {
+    "id": "uuid",
+    "userId": "uuid",
+    "articleId": "uuid",
+    "createdAt": "2026-11-09T10:00:00.000Z"
+  }
+}
+```
+
+Business rules:
+
+- User harus login.
+- User ID berasal dari access token.
+- Article ID berasal dari URL parameter.
+- Artikel harus berstatus `PUBLISHED`.
+- Satu user hanya dapat memberikan satu like pada artikel yang sama.
+- Like duplikat menghasilkan `409 Conflict`.
+
+Possible errors:
+
+| Status | Kondisi                                           |
+| ------ | ------------------------------------------------- |
+| 401    | Access token tidak valid atau tidak tersedia      |
+| 404    | Artikel tidak ditemukan atau belum dipublikasikan |
+| 409    | User sudah memberikan like pada artikel tersebut  |
+| 500    | Internal server error                             |
+
+### DELETE `/likes/articles/:articleId`
+
+Menghapus like dari artikel.
+
+Access: Authenticated.
+
+Request body tidak diperlukan.
+
+Success: `200 OK`.
+
+Response:
+
+```json
+{
+  "success": true,
+  "message": "Article unliked successfully",
+  "data": {
+    "articleId": "uuid",
+    "isLiked": false
+  }
+}
+```
+
+Business rules:
+
+- User harus login.
+- User ID berasal dari access token.
+- Artikel harus berstatus `PUBLISHED`.
+- User hanya dapat menghapus like miliknya sendiri.
+- Jika user belum memberikan like, request tetap berhasil.
+- Operasi unlike bersifat idempotent.
+
+Possible errors:
+
+| Status | Kondisi                                           |
+| ------ | ------------------------------------------------- |
+| 401    | Access token tidak valid atau tidak tersedia      |
+| 404    | Artikel tidak ditemukan atau belum dipublikasikan |
+| 500    | Internal server error                             |
+
+### GET `/likes/articles/:articleId`
+
+Mendapatkan jumlah like pada artikel.
+
+Access: Public.
+
+Request body tidak diperlukan.
+
+Success: `200 OK`.
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "articleId": "uuid",
+    "totalLikes": 10
+  }
+}
+```
+
+Business rules:
+
+- Tidak membutuhkan access token.
+- Artikel harus berstatus `PUBLISHED`.
+- Mengembalikan jumlah seluruh like pada artikel.
+- Jika belum ada like, `totalLikes` bernilai `0`.
+
+Possible errors:
+
+| Status | Kondisi                                           |
+| ------ | ------------------------------------------------- |
+| 404    | Artikel tidak ditemukan atau belum dipublikasikan |
+| 500    | Internal server error                             |
+
+### GET `/likes/articles/:articleId/me`
+
+Mengecek apakah user yang sedang login sudah memberikan like pada artikel.
+
+Access: Authenticated.
+
+Request body tidak diperlukan.
+
+Success: `200 OK`.
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "articleId": "uuid",
+    "isLiked": true
+  }
+}
+```
+
+Business rules:
+
+- Membutuhkan access token.
+- Status like diperiksa berdasarkan kombinasi user ID dan article ID.
+- Mengembalikan `isLiked: true` jika user sudah memberikan like.
+- Mengembalikan `isLiked: false` jika user belum memberikan like.
+- Artikel harus berstatus `PUBLISHED`.
+
+Possible errors:
+
+| Status | Kondisi                                           |
+| ------ | ------------------------------------------------- |
+| 401    | Access token tidak valid atau tidak tersedia      |
+| 404    | Artikel tidak ditemukan atau belum dipublikasikan |
+| 500    | Internal server error                             |
+
+## 7. Planned Bookmark Endpoints
+
+Endpoint berikut belum diimplementasikan. Path dan response final akan ditentukan ketika implementasi dimulai.
 
 | Method | Path                            | Access        | Fungsi             |
 | ------ | ------------------------------- | ------------- | ------------------ |
-| PUT    | `/articles/:articleId/like`     | Authenticated | Like artikel       |
-| DELETE | `/articles/:articleId/like`     | Authenticated | Unlike artikel     |
 | PUT    | `/articles/:articleId/bookmark` | Authenticated | Bookmark artikel   |
 | DELETE | `/articles/:articleId/bookmark` | Authenticated | Menghapus bookmark |
 
-Path dan response final untuk fitur tersebut akan ditentukan ketika implementasi dimulai.
-
-## 7. Error Response Convention
+## 8. Error Response Convention
 
 Format error umum:
 
@@ -606,7 +761,7 @@ HTTP status code yang digunakan:
 
 Backend tidak boleh mengekspos stack trace, detail SQL, secret, password hash, atau informasi internal lainnya pada production.
 
-## 8. Current API Implementation Status
+## 9. Current API Implementation Status
 
 | Module   | Endpoint                     | Status      |
 | -------- | ---------------------------- | ----------- |
@@ -624,14 +779,18 @@ Backend tidak boleh mengekspos stack trace, detail SQL, secret, password hash, a
 | Comment  | Get Comments                 | Implemented |
 | Comment  | Update Comment               | Implemented |
 | Comment  | Delete Comment               | Implemented |
-| Like     | Like / Unlike                | Planned     |
-| Bookmark | Create / Delete              | Planned     |
+| Like     | Create Like                  | Implemented |
+| Like     | Delete Like                  | Implemented |
+| Like     | Get Like Count               | Implemented |
+| Like     | Get Like Status              | Implemented |
+| Bookmark | Create Bookmark              | Planned     |
+| Bookmark | Delete Bookmark              | Planned     |
 
 Status `Implemented` menunjukkan endpoint sudah dibuat dalam kode backend. Status tersebut belum berarti seluruh test case telah dijalankan dan dinyatakan lulus.
 
-## 9. API Testing Notes
+## 10. API Testing Notes
 
-Sebelum frontend melakukan integrasi, endpoint harus diuji dengan Postman atau Thunder Client.
+Pengujian API dilakukan menggunakan Postman atau Thunder Client sebelum frontend melakukan integrasi.
 
 Pengujian mencakup:
 
@@ -644,4 +803,13 @@ Pengujian mencakup:
 - Konsistensi HTTP status code dan response.
 - Error handling.
 
-Hasil pengujian aktual harus dicatat secara terpisah dari status implementasi.
+### Completed Test Results
+
+Pengujian yang telah berhasil diselesaikan:
+
+- Authentication: Register, Login, Refresh Token Rotation, dan Logout.
+- Article CRUD: Create, Read, Update, dan Delete.
+- Comment CRUD: Create, Read, Update, dan Delete.
+- Like: Create Like, Duplicate Like Prevention, Delete Like, Get Like Count, dan Get Like Status.
+
+Hasil pengujian aktual dicatat berdasarkan endpoint dan skenario yang telah dijalankan.
