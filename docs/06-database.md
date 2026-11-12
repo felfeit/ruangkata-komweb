@@ -88,7 +88,11 @@ Keterangan:
 ### Likes and Bookmarks
 
 - Primary key menggunakan UUID.
+- `user_id`: foreign key ke `users.id`.
+- `article_id`: foreign key ke `articles.id`.
+- `created_at`: timestamp pembuatan record.
 - Pasangan `(user_id, article_id)` memiliki unique constraint.
+- `article_id` memiliki index untuk mendukung pencarian berdasarkan artikel.
 - User hanya dapat memiliki satu like dan satu bookmark untuk artikel yang sama.
 
 ### Refresh Tokens
@@ -180,7 +184,33 @@ Field utama:
 
 Batas waktu edit 15 menit diterapkan pada service layer backend. Tidak diperlukan kolom tambahan karena waktu pembuatan sudah dicatat melalui `created_at`.
 
-## 8. Refresh Token Storage
+## 8. Like Fields and Business Rules
+
+Like disimpan pada tabel `likes` untuk mencatat hubungan antara user dan artikel yang disukai.
+
+Field utama:
+
+| Field        | Keterangan                |
+| ------------ | ------------------------- |
+| `id`         | UUID record like          |
+| `user_id`    | User yang memberikan like |
+| `article_id` | Artikel yang disukai      |
+| `created_at` | Waktu like dibuat         |
+
+### Like Rules
+
+1. Like hanya dapat diberikan oleh user terautentikasi.
+2. Like hanya dapat diberikan pada artikel berstatus `PUBLISHED`.
+3. Satu user hanya dapat memberikan satu like pada artikel yang sama.
+4. Unique constraint pada pasangan `(user_id, article_id)` mencegah duplikasi like di tingkat database.
+5. Backend mengembalikan `409 Conflict` jika user mencoba memberikan like pada artikel yang sudah disukai.
+6. Penghapusan like hanya dapat dilakukan oleh user yang memiliki like tersebut.
+7. Penghapusan like bersifat idempotent. Jika record like tidak ditemukan, request tetap berhasil dan status like dikembalikan sebagai `false`.
+8. Jumlah like artikel dapat diakses secara publik, sedangkan status like milik user memerlukan autentikasi.
+
+Validasi status artikel dan autentikasi diterapkan pada service layer dan middleware backend. Database menjaga integritas relasi dan mencegah duplikasi melalui foreign key serta unique constraint.
+
+## 9. Refresh Token Storage
 
 Tabel `refresh_tokens` digunakan untuk mengelola sesi autentikasi.
 
@@ -199,7 +229,7 @@ Refresh token tidak disimpan dalam bentuk plaintext.
 
 Ketika refresh token dirotasi, record token lama dicabut dan record baru dibuat. Backend juga mendeteksi penggunaan kembali token yang sudah dicabut.
 
-## 9. Prisma and Supabase Connection URLs
+## 10. Prisma and Supabase Connection URLs
 
 Environment variables:
 
@@ -216,7 +246,7 @@ Pada setup Prisma 6 saat ini:
 
 Pastikan connection string sesuai konfigurasi Supabase. Jangan commit connection string asli.
 
-## 10. Row Level Security
+## 11. Row Level Security
 
 RLS diaktifkan pada tabel aplikasi dan privilege tabel langsung untuk role `anon` dan `authenticated` dicabut sesuai konfigurasi Supabase.
 
@@ -232,7 +262,7 @@ Karena itu:
 
 Express dan Prisma menjadi jalur akses database aplikasi.
 
-## 11. Migration Policy
+## 12. Migration Policy
 
 - Setiap perubahan schema harus memiliki migration bernama.
 - Commit migration bersama perubahan kode.
@@ -241,7 +271,7 @@ Express dan Prisma menjadi jalur akses database aplikasi.
 - Review SQL hasil generate sebelum menerapkan perubahan sensitif.
 - Pastikan `schema.prisma`, migration, dan dokumentasi selalu konsisten.
 
-## 12. Current Database Implementation
+## 13. Current Database Implementation
 
 | Area                         | Status             |
 | ---------------------------- | ------------------ |
@@ -254,6 +284,7 @@ Express dan Prisma menjadi jalur akses database aplikasi.
 | Refresh Tokens               | Schema implemented |
 | Article relationships        | Defined            |
 | Comment relationships        | Defined            |
+| Like relationships           | Defined            |
 | Cascade and SetNull behavior | Defined            |
 | Initial database migration   | Applied previously |
 
