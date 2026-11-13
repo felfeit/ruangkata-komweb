@@ -27,6 +27,7 @@ Frontend hanya berkomunikasi dengan Express REST API. Akses database dan Supabas
 ## 2. Backend Project Structure
 
 ```text
+
 backend/
 ├── prisma/
 │   ├── migrations/
@@ -37,21 +38,24 @@ backend/
 │   ├── controllers/
 │   │   ├── auth.controller.js
 │   │   ├── article.controller.js
-│   │   └── comment.controller.js
-│   │   └── like.controller.js
+│   │   ├── comment.controller.js
+│   │   ├── like.controller.js
+│   │   └── bookmark.controller.js
 │   ├── middlewares/
 │   │   ├── auth.middleware.js
 │   │   └── ownership.middleware.js
 │   ├── routes/
 │   │   ├── auth.routes.js
 │   │   ├── article.routes.js
-│   │   └── comment.routes.js
-│   │   └── like.routes.js
+│   │   ├── comment.routes.js
+│   │   ├── like.routes.js
+│   │   └── bookmark.routes.js
 │   ├── services/
 │   │   ├── auth.service.js
 │   │   ├── article.service.js
-│   │   └── comment.service.js
-│   │   └── like.service.js
+│   │   ├── comment.service.js
+│   │   ├── like.service.js
+│   │   └── bookmark.service.js
 │   ├── utils/
 │   │   └── token.util.js
 │   ├── app.js
@@ -256,7 +260,50 @@ Like service menangani operasi:
 - Status like diperiksa berdasarkan kombinasi `userId` dan `articleId`.
 - Mengembalikan `isLiked: true` jika pengguna sudah memberikan like, dan `false` jika belum.
 
-## 9. Error Handling
+## 10. Bookmark Module
+
+Bookmark service menangani operasi:
+
+- Create Bookmark.
+- Delete Bookmark.
+- Get My Bookmarks.
+- Get Bookmark Status.
+
+### Bookmark Business Rules
+
+#### Create Bookmark
+
+- Hanya pengguna terautentikasi yang dapat menyimpan artikel.
+- `userId` berasal dari access token.
+- `articleId` berasal dari URL parameter.
+- Bookmark hanya dapat dibuat pada artikel berstatus `PUBLISHED`.
+- Satu pengguna hanya dapat menyimpan satu bookmark pada artikel yang sama.
+- Bookmark duplikat menghasilkan `409 Conflict`.
+
+#### Delete Bookmark
+
+- Hanya pengguna terautentikasi yang dapat menghapus bookmark.
+- Penghapusan hanya berlaku pada bookmark milik pengguna tersebut.
+- Bookmark dapat dihapus kapan saja.
+- Jika bookmark tidak ditemukan, request tetap berhasil dengan status `isBookmarked: false`.
+
+#### Read My Bookmarks
+
+- Membutuhkan access token.
+- Pengguna hanya dapat melihat daftar bookmark miliknya sendiri.
+- Hanya bookmark dari artikel berstatus `PUBLISHED` yang ditampilkan.
+- Menggunakan pagination dengan default page 1 dan limit 10.
+- Maksimal limit adalah 50.
+- Daftar bookmark diurutkan berdasarkan waktu penyimpanan terbaru (`createdAt DESC`).
+- Data artikel mencakup informasi author dan category.
+
+#### Read Bookmark Status
+
+- Membutuhkan access token.
+- Status bookmark diperiksa berdasarkan kombinasi `userId` dan `articleId`.
+- Mengembalikan `isBookmarked: true` jika artikel sudah disimpan, dan `false` jika belum.
+
+## 11. Error Handling
 
 Error handling terpusat berada di `app.js`.
 
@@ -277,7 +324,7 @@ Error server dengan status 500 atau lebih tidak mengekspos detail exception kepa
 
 Jangan mengembalikan stack trace, detail SQL, secret, password hash, atau refresh token hash pada production.
 
-## 10. Validation and Security Checklist
+## 12. Validation and Security Checklist
 
 Sebelum API dianggap siap:
 
@@ -293,7 +340,7 @@ Sebelum API dianggap siap:
 - Terapkan authentication dan ownership check pada seluruh endpoint privat.
 - Pastikan credential database dan Storage tidak pernah diekspos ke frontend.
 
-## 11. Environment Variables
+## 13. Environment Variables
 
 Environment variables disimpan di `.env` dan tidak boleh di-commit ke repository.
 
@@ -316,7 +363,7 @@ Gunakan `.env.example` sebagai template tanpa credential asli.
 
 Jangan pernah membagikan atau meng-commit isi `.env`.
 
-## 12. Current Implementation Status
+## 14. Current Implementation Status
 
 | Module         | Status Implementasi     | Status Pengujian                    |
 | -------------- | ----------------------- | ----------------------------------- |
@@ -324,14 +371,14 @@ Jangan pernah membagikan atau meng-commit isi `.env`.
 | Authentication | Implemented             | Seluruh simulasi pengujian berhasil |
 | Article CRUD   | Implemented             | Seluruh simulasi pengujian berhasil |
 | Comment CRUD   | Implemented             | Seluruh simulasi pengujian berhasil |
-| Image Upload   | Belum diimplementasikan | Seluruh simulasi pengujian berhasil |
+| Like           | Implemented             | Seluruh simulasi pengujian berhasil |
+| Bookmark       | Implemented             | Seluruh simulasi pengujian berhasil |
+| Image Upload   | Belum diimplementasikan | Belum diuji                         |
 | Image Deletion | Belum diimplementasikan | Belum diuji                         |
-| Like           | Belum diimplementasikan | Belum diuji                         |
-| Bookmark       | Belum diimplementasikan | Belum diuji                         |
 
 Status implementasi berarti kode fitur sudah dibuat, bukan berarti seluruh skenario pengujiannya sudah lulus.
 
-## 13. Development and Migration Policy
+## 15. Development and Migration Policy
 
 - Setiap perubahan schema harus memiliki migration bernama.
 - Commit file migration bersama perubahan kode.

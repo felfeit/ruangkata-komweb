@@ -16,7 +16,7 @@ Database menjadi sumber utama data aplikasi. Seluruh akses database dari fronten
 
 ## 2. Tables
 
-Database aplikasi memiliki tujuh tabel utama dan satu tabel tambahan untuk manajemen refresh token.
+Database aplikasi memiliki enam tabel utama dan satu tabel tambahan untuk manajemen refresh token.
 
 | Table            | Fungsi                                   |
 | ---------------- | ---------------------------------------- |
@@ -210,7 +210,37 @@ Field utama:
 
 Validasi status artikel dan autentikasi diterapkan pada service layer dan middleware backend. Database menjaga integritas relasi dan mencegah duplikasi melalui foreign key serta unique constraint.
 
-## 9. Refresh Token Storage
+## 9. Bookmark Fields and Business Rules
+
+Bookmark disimpan pada tabel `bookmarks` untuk mencatat hubungan antara user dan artikel yang disimpan.
+
+Field utama:
+
+| Field        | Keterangan                  |
+| ------------ | --------------------------- |
+| `id`         | UUID record bookmark        |
+| `user_id`    | User yang menyimpan artikel |
+| `article_id` | Artikel yang disimpan       |
+| `created_at` | Waktu bookmark dibuat       |
+
+### Bookmark Rules
+
+1. Bookmark hanya dapat dibuat oleh user terautentikasi.
+2. Bookmark hanya dapat dibuat pada artikel berstatus `PUBLISHED`.
+3. Satu user hanya dapat memiliki satu bookmark pada artikel yang sama.
+4. Unique constraint pada pasangan `(user_id, article_id)` mencegah duplikasi bookmark di tingkat database.
+5. Backend mengembalikan `409 Conflict` jika user mencoba menyimpan artikel yang sudah di-bookmark.
+6. Penghapusan bookmark hanya dapat dilakukan oleh user yang memiliki bookmark tersebut.
+7. Penghapusan bookmark bersifat idempotent. Jika record bookmark tidak ditemukan, request tetap berhasil dan status bookmark dikembalikan sebagai `false`.
+8. Daftar bookmark hanya dapat diakses oleh user yang bersangkutan.
+9. Daftar bookmark hanya menampilkan artikel berstatus `PUBLISHED`.
+10. Daftar bookmark menggunakan pagination dengan default `page = 1` dan `limit = 10`, serta maksimal `limit = 50`.
+11. Daftar bookmark diurutkan berdasarkan waktu penyimpanan terbaru (`created_at DESC`).
+12. Status bookmark milik user memerlukan autentikasi.
+
+Validasi status artikel, autentikasi, dan kepemilikan bookmark diterapkan pada service layer dan middleware backend. Database menjaga integritas relasi dan mencegah duplikasi melalui foreign key serta unique constraint.
+
+## 10. Refresh Token Storage
 
 Tabel `refresh_tokens` digunakan untuk mengelola sesi autentikasi.
 
@@ -229,7 +259,7 @@ Refresh token tidak disimpan dalam bentuk plaintext.
 
 Ketika refresh token dirotasi, record token lama dicabut dan record baru dibuat. Backend juga mendeteksi penggunaan kembali token yang sudah dicabut.
 
-## 10. Prisma and Supabase Connection URLs
+## 11. Prisma and Supabase Connection URLs
 
 Environment variables:
 
@@ -246,7 +276,7 @@ Pada setup Prisma 6 saat ini:
 
 Pastikan connection string sesuai konfigurasi Supabase. Jangan commit connection string asli.
 
-## 11. Row Level Security
+## 12. Row Level Security
 
 RLS diaktifkan pada tabel aplikasi dan privilege tabel langsung untuk role `anon` dan `authenticated` dicabut sesuai konfigurasi Supabase.
 
@@ -262,7 +292,7 @@ Karena itu:
 
 Express dan Prisma menjadi jalur akses database aplikasi.
 
-## 12. Migration Policy
+## 13. Migration Policy
 
 - Setiap perubahan schema harus memiliki migration bernama.
 - Commit migration bersama perubahan kode.
@@ -271,7 +301,7 @@ Express dan Prisma menjadi jalur akses database aplikasi.
 - Review SQL hasil generate sebelum menerapkan perubahan sensitif.
 - Pastikan `schema.prisma`, migration, dan dokumentasi selalu konsisten.
 
-## 13. Current Database Implementation
+## 14. Current Database Implementation
 
 | Area                         | Status             |
 | ---------------------------- | ------------------ |

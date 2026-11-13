@@ -726,14 +726,194 @@ Possible errors:
 | 404    | Artikel tidak ditemukan atau belum dipublikasikan |
 | 500    | Internal server error                             |
 
-## 7. Planned Bookmark Endpoints
+## 7. Bookmark Endpoints
 
-Endpoint berikut belum diimplementasikan. Path dan response final akan ditentukan ketika implementasi dimulai.
+### POST `/bookmarks/articles/:articleId`
 
-| Method | Path                            | Access        | Fungsi             |
-| ------ | ------------------------------- | ------------- | ------------------ |
-| PUT    | `/articles/:articleId/bookmark` | Authenticated | Bookmark artikel   |
-| DELETE | `/articles/:articleId/bookmark` | Authenticated | Menghapus bookmark |
+Menyimpan artikel ke bookmark.
+
+Access: Authenticated.
+
+Request body tidak diperlukan.
+
+Success: `201 Created`.
+
+Response:
+
+```json
+{
+  "success": true,
+  "message": "Article bookmarked successfully",
+  "data": {
+    "id": "uuid",
+    "userId": "uuid",
+    "articleId": "uuid",
+    "createdAt": "2026-11-13T10:00:00.000Z"
+  }
+}
+```
+
+Business rules:
+
+- User harus login.
+- User ID berasal dari access token.
+- Article ID berasal dari URL parameter.
+- Artikel harus berstatus `PUBLISHED`.
+- Satu user hanya dapat menyimpan satu bookmark pada artikel yang sama.
+- Bookmark duplikat menghasilkan `409 Conflict`.
+
+Possible errors:
+
+| Status | Kondisi                                           |
+| ------ | ------------------------------------------------- |
+| 401    | Access token tidak valid atau tidak tersedia      |
+| 404    | Artikel tidak ditemukan atau belum dipublikasikan |
+| 409    | User sudah menyimpan artikel tersebut             |
+| 500    | Internal server error                             |
+
+### DELETE `/bookmarks/articles/:articleId`
+
+Menghapus bookmark dari artikel.
+
+Access: Authenticated.
+
+Request body tidak diperlukan.
+
+Success: `200 OK`.
+
+Response:
+
+```json
+{
+  "success": true,
+  "message": "Bookmark removed successfully",
+  "data": {
+    "articleId": "uuid",
+    "isBookmarked": false
+  }
+}
+```
+
+Business rules:
+
+- User harus login.
+- User ID berasal dari access token.
+- Artikel harus berstatus `PUBLISHED`.
+- User hanya dapat menghapus bookmark miliknya sendiri.
+- Jika bookmark tidak ditemukan, request tetap berhasil.
+- Operasi penghapusan bookmark bersifat idempotent.
+
+Possible errors:
+
+| Status | Kondisi                                           |
+| ------ | ------------------------------------------------- |
+| 401    | Access token tidak valid atau tidak tersedia      |
+| 404    | Artikel tidak ditemukan atau belum dipublikasikan |
+| 500    | Internal server error                             |
+
+### GET `/bookmarks/my`
+
+Mendapatkan daftar bookmark milik user yang sedang login.
+
+Access: Authenticated.
+
+Query parameters:
+
+| Parameter | Default | Keterangan                               |
+| --------- | ------: | ---------------------------------------- |
+| `page`    |       1 | Nomor halaman                            |
+| `limit`   |      10 | Jumlah bookmark per halaman, maksimal 50 |
+
+Success: `200 OK`.
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid",
+      "userId": "uuid",
+      "articleId": "uuid",
+      "createdAt": "2026-11-13T10:00:00.000Z",
+      "article": {
+        "id": "uuid",
+        "title": "Example Article",
+        "slug": "example-article",
+        "author": {
+          "id": "uuid",
+          "name": "Example User",
+          "username": "example"
+        },
+        "category": null
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 1,
+    "totalPages": 1
+  }
+}
+```
+
+Business rules:
+
+- User harus login.
+- User hanya dapat melihat bookmark miliknya sendiri.
+- Hanya artikel berstatus `PUBLISHED` yang ditampilkan.
+- Daftar bookmark diurutkan berdasarkan `createdAt DESC`.
+- Pagination menggunakan default page 1 dan limit 10.
+- Maksimal limit adalah 50.
+- Data artikel mencakup informasi author dan category.
+
+Possible errors:
+
+| Status | Kondisi                                      |
+| ------ | -------------------------------------------- |
+| 400    | Parameter pagination tidak valid             |
+| 401    | Access token tidak valid atau tidak tersedia |
+| 500    | Internal server error                        |
+
+### GET `/bookmarks/articles/:articleId`
+
+Memeriksa status bookmark user pada artikel.
+
+Access: Authenticated.
+
+Request body tidak diperlukan.
+
+Success: `200 OK`.
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "articleId": "uuid",
+    "isBookmarked": true
+  }
+}
+```
+
+Business rules:
+
+- User harus login.
+- Status bookmark diperiksa berdasarkan kombinasi user ID dan article ID.
+- Mengembalikan `isBookmarked: true` jika artikel sudah disimpan.
+- Mengembalikan `isBookmarked: false` jika artikel belum disimpan.
+- Artikel harus berstatus `PUBLISHED`.
+
+Possible errors:
+
+| Status | Kondisi                                           |
+| ------ | ------------------------------------------------- |
+| 401    | Access token tidak valid atau tidak tersedia      |
+| 404    | Artikel tidak ditemukan atau belum dipublikasikan |
+| 500    | Internal server error                             |
 
 ## 8. Error Response Convention
 
@@ -783,8 +963,10 @@ Backend tidak boleh mengekspos stack trace, detail SQL, secret, password hash, a
 | Like     | Delete Like                  | Implemented |
 | Like     | Get Like Count               | Implemented |
 | Like     | Get Like Status              | Implemented |
-| Bookmark | Create Bookmark              | Planned     |
-| Bookmark | Delete Bookmark              | Planned     |
+| Bookmark | Create Bookmark              | Implemented |
+| Bookmark | Delete Bookmark              | Implemented |
+| Bookmark | Get My Bookmarks             | Implemented |
+| Bookmark | Get Bookmark Status          | Implemented |
 
 Status `Implemented` menunjukkan endpoint sudah dibuat dalam kode backend. Status tersebut belum berarti seluruh test case telah dijalankan dan dinyatakan lulus.
 
@@ -811,5 +993,6 @@ Pengujian yang telah berhasil diselesaikan:
 - Article CRUD: Create, Read, Update, dan Delete.
 - Comment CRUD: Create, Read, Update, dan Delete.
 - Like: Create Like, Duplicate Like Prevention, Delete Like, Get Like Count, dan Get Like Status.
+- Bookmark: Create Bookmark, Duplicate Bookmark Prevention, Delete Bookmark, Get My Bookmarks, Pagination, Get Bookmark Status, dan User Data Isolation.
 
 Hasil pengujian aktual dicatat berdasarkan endpoint dan skenario yang telah dijalankan.
