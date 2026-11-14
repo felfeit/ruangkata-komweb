@@ -16,7 +16,7 @@ Database menjadi sumber utama data aplikasi. Seluruh akses database dari fronten
 
 ## 2. Tables
 
-Database aplikasi memiliki enam tabel utama dan satu tabel tambahan untuk manajemen refresh token.
+Database aplikasi memiliki tujuh tabel utama dan satu tabel tambahan untuk manajemen refresh token.
 
 | Table            | Fungsi                                   |
 | ---------------- | ---------------------------------------- |
@@ -61,6 +61,7 @@ Keterangan:
 - `id`: UUID primary key.
 - `username`: unique.
 - `email`: unique.
+- `profile_image_path`: nullable storage path foto profil pengguna.
 
 ### Categories
 
@@ -125,7 +126,38 @@ Konsekuensi:
 - Menghapus artikel juga menghapus komentar, like, dan bookmark yang terkait.
 - Menghapus kategori tidak menghapus artikel. `category_id` pada artikel terkait menjadi `NULL`.
 
-## 6. Article Fields and Content
+## 6. User Fields and Profile Image
+
+Tabel `users` menyimpan informasi akun dan profil pengguna.
+
+Field utama:
+
+| Field                | Keterangan                           |
+| -------------------- | ------------------------------------ |
+| `id`                 | UUID pengguna                        |
+| `name`               | Nama pengguna                        |
+| `username`           | Username unik                        |
+| `email`              | Email unik                           |
+| `password_hash`      | Password yang sudah di-hash          |
+| `bio`                | Deskripsi singkat pengguna           |
+| `profile_image_path` | Path foto profil di Supabase Storage |
+| `created_at`         | Waktu akun dibuat                    |
+| `updated_at`         | Waktu data diperbarui                |
+
+### Profile Image Rules
+
+1. Foto profil disimpan sebagai file pada Supabase Storage bucket `profile-images`.
+2. Database hanya menyimpan storage path pada kolom `profile_image_path`, bukan URL publik atau binary image.
+3. `profile_image_path` bersifat nullable sehingga pengguna dapat memiliki akun tanpa foto profil.
+4. Gambar diproses oleh backend menggunakan Sharp dan dikonversi menjadi WebP.
+5. Ukuran hasil pemrosesan maksimal 1 MB dengan dimensi maksimal 512 × 512 piksel.
+6. Penggantian foto profil memperbarui storage path dengan path gambar baru.
+7. Penghapusan foto profil mengubah `profile_image_path` menjadi `NULL`.
+8. User hanya dapat mengelola foto profil miliknya sendiri melalui backend.
+
+Tidak diperlukan tabel khusus untuk foto profil karena setiap user hanya memiliki satu foto profil aktif.
+
+## 7. Article Fields and Content
 
 Artikel menyimpan konten utama dalam `content_markdown` bertipe text.
 
@@ -154,9 +186,13 @@ Field utama artikel:
 | `created_at`       | Waktu pembuatan              |
 | `updated_at`       | Waktu pembaruan              |
 
-Cover image disimpan sebagai file di Supabase Storage. Database hanya menyimpan path file, bukan binary image.
+Cover image menggunakan bucket `article-images` dan kolom
+`cover_image_path` bersifat nullable. Artikel dapat dibuat tanpa cover image.
 
-## 7. Comment Fields and Business Rules
+Gambar diproses oleh backend menggunakan Sharp dan dikonversi menjadi
+WebP dengan ukuran maksimal 1 MB serta dimensi maksimal 1600 × 1200 piksel.
+
+## 8. Comment Fields and Business Rules
 
 Komentar disimpan pada tabel `comments`.
 
@@ -184,7 +220,7 @@ Field utama:
 
 Batas waktu edit 15 menit diterapkan pada service layer backend. Tidak diperlukan kolom tambahan karena waktu pembuatan sudah dicatat melalui `created_at`.
 
-## 8. Like Fields and Business Rules
+## 9. Like Fields and Business Rules
 
 Like disimpan pada tabel `likes` untuk mencatat hubungan antara user dan artikel yang disukai.
 
@@ -210,7 +246,7 @@ Field utama:
 
 Validasi status artikel dan autentikasi diterapkan pada service layer dan middleware backend. Database menjaga integritas relasi dan mencegah duplikasi melalui foreign key serta unique constraint.
 
-## 9. Bookmark Fields and Business Rules
+## 10. Bookmark Fields and Business Rules
 
 Bookmark disimpan pada tabel `bookmarks` untuk mencatat hubungan antara user dan artikel yang disimpan.
 
@@ -240,7 +276,7 @@ Field utama:
 
 Validasi status artikel, autentikasi, dan kepemilikan bookmark diterapkan pada service layer dan middleware backend. Database menjaga integritas relasi dan mencegah duplikasi melalui foreign key serta unique constraint.
 
-## 10. Refresh Token Storage
+## 11. Refresh Token Storage
 
 Tabel `refresh_tokens` digunakan untuk mengelola sesi autentikasi.
 
@@ -259,7 +295,7 @@ Refresh token tidak disimpan dalam bentuk plaintext.
 
 Ketika refresh token dirotasi, record token lama dicabut dan record baru dibuat. Backend juga mendeteksi penggunaan kembali token yang sudah dicabut.
 
-## 11. Prisma and Supabase Connection URLs
+## 12. Prisma and Supabase Connection URLs
 
 Environment variables:
 
@@ -276,7 +312,7 @@ Pada setup Prisma 6 saat ini:
 
 Pastikan connection string sesuai konfigurasi Supabase. Jangan commit connection string asli.
 
-## 12. Row Level Security
+## 13. Row Level Security
 
 RLS diaktifkan pada tabel aplikasi dan privilege tabel langsung untuk role `anon` dan `authenticated` dicabut sesuai konfigurasi Supabase.
 
@@ -292,7 +328,7 @@ Karena itu:
 
 Express dan Prisma menjadi jalur akses database aplikasi.
 
-## 13. Migration Policy
+## 14. Migration Policy
 
 - Setiap perubahan schema harus memiliki migration bernama.
 - Commit migration bersama perubahan kode.
@@ -301,13 +337,15 @@ Express dan Prisma menjadi jalur akses database aplikasi.
 - Review SQL hasil generate sebelum menerapkan perubahan sensitif.
 - Pastikan `schema.prisma`, migration, dan dokumentasi selalu konsisten.
 
-## 14. Current Database Implementation
+## 15. Current Database Implementation
 
 | Area                         | Status             |
 | ---------------------------- | ------------------ |
 | Users                        | Schema implemented |
+| User profile image path      | Schema implemented |
 | Categories                   | Schema implemented |
 | Articles                     | Schema implemented |
+| Article cover image path     | Schema implemented |
 | Comments                     | Schema implemented |
 | Likes                        | Schema implemented |
 | Bookmarks                    | Schema implemented |
@@ -316,6 +354,7 @@ Express dan Prisma menjadi jalur akses database aplikasi.
 | Comment relationships        | Defined            |
 | Like relationships           | Defined            |
 | Cascade and SetNull behavior | Defined            |
+| Profile image migration      | Applied            |
 | Initial database migration   | Applied previously |
 
 Gunakan `prisma/schema.prisma` dan folder `prisma/migrations/` sebagai sumber kebenaran untuk struktur database yang sebenarnya.

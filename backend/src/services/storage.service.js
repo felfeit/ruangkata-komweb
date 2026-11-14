@@ -1,29 +1,41 @@
+
 const { randomUUID } = require("crypto");
-const { supabase, storageBucket } = require("../config/supabase");
 
-const MIME_TYPES = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-};
+const {
+  supabase,
+  articleImageBucket,
+  profileImageBucket,
+} = require("../config/supabase");
 
-async function uploadImage(file, userId) {
-  if (!file) {
+const { processImage } = require("../utils/image.util");
+
+async function uploadImage(file, type, ownerId) {
+  if (!file || !file.buffer) {
     throw new Error("Image file is required");
   }
 
-  const extension = MIME_TYPES[file.mimetype];
-
-  if (!extension) {
-    throw new Error("Unsupported image format");
+  if (!["profile", "article"].includes(type)) {
+    throw new Error("Invalid image type");
   }
 
-  const filePath = `users/${userId}/${randomUUID()}.${extension}`;
+  if (!ownerId) {
+    throw new Error("Image owner ID is required");
+  }
+
+  const processedImage = await processImage(file.buffer, type);
+
+  const bucket =
+    type === "profile" ? profileImageBucket : articleImageBucket;
+
+  const folder =
+    type === "profile" ? `users/${ownerId}` : `articles/${ownerId}`;
+
+  const filePath = `${folder}/${randomUUID()}.webp`;
 
   const { data, error } = await supabase.storage
-    .from(storageBucket)
-    .upload(filePath, file.buffer, {
-      contentType: file.mimetype,
+    .from(bucket)
+    .upload(filePath, processedImage.buffer, {
+      contentType: processedImage.mimetype,
       upsert: false,
     });
 
@@ -32,29 +44,42 @@ async function uploadImage(file, userId) {
   }
 
   const { data: publicData } = supabase.storage
-    .from(storageBucket)
+    .from(bucket)
     .getPublicUrl(data.path);
 
   return {
     path: data.path,
     url: publicData.publicUrl,
+    size: processedImage.size,
+    mimetype: processedImage.mimetype,
   };
 }
 
-async function deleteImage(filePath, userId) {
+async function deleteImage(filePath, type, ownerId) {
   if (!filePath) {
     throw new Error("Image path is required");
   }
 
-  // Pastikan user hanya dapat menghapus gambar miliknya.
-  const allowedPrefix = `users/${userId}/`;
+  if (!["profile", "article"].includes(type)) {
+    throw new Error("Invalid image type");
+  }
+
+  if (!ownerId) {
+    throw new Error("Image owner ID is required");
+  }
+
+  const bucket =
+    type === "profile" ? profileImageBucket : articleImageBucket;
+
+  const allowedPrefix =
+    type === "profile" ? `users/${ownerId}/` : `articles/${ownerId}/`;
 
   if (!filePath.startsWith(allowedPrefix)) {
     throw new Error("You are not allowed to delete this image");
   }
 
   const { error } = await supabase.storage
-    .from(storageBucket)
+    .from(bucket)
     .remove([filePath]);
 
   if (error) {

@@ -27,37 +27,43 @@ Frontend hanya berkomunikasi dengan Express REST API. Akses database dan Supabas
 ## 2. Backend Project Structure
 
 ```text
-
 backend/
 ├── prisma/
 │   ├── migrations/
 │   └── schema.prisma
 ├── src/
 │   ├── config/
-│   │   └── prisma.js
+│   │   ├── prisma.js
+│   │   └── supabase.js
 │   ├── controllers/
 │   │   ├── auth.controller.js
+│   │   ├── user.controller.js
 │   │   ├── article.controller.js
 │   │   ├── comment.controller.js
 │   │   ├── like.controller.js
 │   │   └── bookmark.controller.js
 │   ├── middlewares/
 │   │   ├── auth.middleware.js
-│   │   └── ownership.middleware.js
+│   │   ├── ownership.middleware.js
+│   │   └── upload.middleware.js
 │   ├── routes/
 │   │   ├── auth.routes.js
+│   │   ├── user.routes.js
 │   │   ├── article.routes.js
 │   │   ├── comment.routes.js
 │   │   ├── like.routes.js
 │   │   └── bookmark.routes.js
 │   ├── services/
 │   │   ├── auth.service.js
+│   │   ├── user.service.js
 │   │   ├── article.service.js
 │   │   ├── comment.service.js
 │   │   ├── like.service.js
-│   │   └── bookmark.service.js
+│   │   ├── bookmark.service.js
+│   │   └── storage.service.js
 │   ├── utils/
-│   │   └── token.util.js
+│   │   ├── token.util.js
+│   │   └── image.util.js
 │   ├── app.js
 │   └── server.js
 ├── .env
@@ -303,7 +309,131 @@ Bookmark service menangani operasi:
 - Status bookmark diperiksa berdasarkan kombinasi `userId` dan `articleId`.
 - Mengembalikan `isBookmarked: true` jika artikel sudah disimpan, dan `false` jika belum.
 
-## 11. Error Handling
+## 11. Image Management
+
+Image management menangani upload, pemrosesan, penyimpanan, penggantian, dan penghapusan gambar melalui Supabase Storage.
+
+Backend menggunakan:
+
+- Multer untuk menerima file upload.
+- Sharp untuk validasi, resize, dan kompresi gambar.
+- Supabase Storage untuk menyimpan gambar hasil pemrosesan.
+
+### Image Storage Configuration
+
+Aplikasi menggunakan dua public storage bucket:
+
+| Bucket           | Fungsi                         |
+| ---------------- | ------------------------------ |
+| `profile-images` | Menyimpan foto profil pengguna |
+| `article-images` | Menyimpan cover image artikel  |
+
+Kedua bucket menggunakan konfigurasi public sehingga gambar dapat diakses melalui public URL.
+
+Credential Supabase Storage hanya digunakan oleh backend. Secret key tidak boleh diekspos ke frontend.
+
+Database hanya menyimpan storage path gambar, bukan public URL.
+
+### Supported Image Formats
+
+Format gambar input yang didukung:
+
+- JPEG
+- PNG
+- WebP
+
+Seluruh gambar yang berhasil diproses dikonversi menjadi format WebP.
+
+### Image Processing Rules
+
+Backend menerapkan ketentuan berikut:
+
+| Ketentuan           | Profile Image | Article Cover  |
+| ------------------- | ------------- | -------------- |
+| Maximum input size  | 10 MB         | 10 MB          |
+| Maximum output size | 1 MB          | 1 MB           |
+| Maximum dimensions  | 512 × 512 px  | 1600 × 1200 px |
+| Output format       | WebP          | WebP           |
+
+Mekanisme pemrosesan:
+
+1. Multer menerima file menggunakan memory storage.
+2. File input dibatasi maksimal 10 MB.
+3. Sharp memvalidasi metadata dan format gambar.
+4. Gambar diputar sesuai orientasi metadata jika diperlukan.
+5. Gambar di-resize agar tidak melebihi dimensi maksimal.
+6. Gambar dikompresi dan dikonversi menjadi WebP.
+7. Hasil pemrosesan harus berukuran maksimal 1 MB.
+8. Jika ukuran hasil masih melebihi batas setelah proses kompresi, upload ditolak.
+
+Validasi tidak hanya mengandalkan MIME type dari request. Sharp juga digunakan untuk memeriksa format dan memproses data gambar.
+
+### Profile Image Management
+
+Profile image service menangani:
+
+- Upload Profile Image.
+- Replace Profile Image.
+- Delete Profile Image.
+
+Business rules:
+
+- User harus terautentikasi.
+- User hanya dapat mengelola foto profil miliknya sendiri.
+- User ID berasal dari access token.
+- Gambar disimpan pada bucket `profile-images`.
+- Storage path disimpan pada kolom `profile_image_path`.
+- Upload gambar baru dilakukan sebelum database diperbarui.
+- Setelah database berhasil diperbarui, gambar lama dihapus dari Storage.
+- Jika pembaruan database gagal, backend mencoba menghapus gambar baru yang sudah diunggah untuk mencegah orphaned file.
+
+### Article Cover Image Management
+
+Article service menangani:
+
+- Upload Article Cover Image.
+- Replace Article Cover Image.
+- Delete Article Cover Image.
+
+Business rules:
+
+- User harus terautentikasi.
+- Hanya pemilik artikel yang dapat mengelola cover image.
+- Article ID berasal dari URL parameter.
+- Gambar disimpan pada bucket `article-images`.
+- Storage path disimpan pada kolom `cover_image_path`.
+- Upload cover image dilakukan melalui endpoint terpisah dari pembuatan artikel.
+- Artikel harus sudah tersedia sebelum cover image dapat diunggah.
+- Ketika mengganti cover, backend mengunggah gambar baru dan memperbarui database sebelum menghapus gambar lama.
+- Jika pembaruan database gagal, backend mencoba menghapus gambar baru yang sudah diunggah.
+
+### Storage File Naming
+
+File disimpan menggunakan UUID untuk menghindari konflik nama.
+
+Contoh storage path:
+
+```text
+profile-images/
+└── users/
+    └── {userId}/
+        └── {imageUuid}.webp
+
+article-images/
+└── articles/
+    └── {articleId}/
+        └── {imageUuid}.webp
+```
+
+### Storage Deletion Handling
+
+Penghapusan gambar dari Storage dilakukan setelah database diperbarui.
+
+Jika penghapusan file lama gagal, backend mencatat error pada server log. Operasi database tetap dipertahankan agar referensi gambar aktif tidak menunjuk ke file lama yang sudah digantikan atau dihapus.
+
+Penghapusan file yang gagal dapat meninggalkan orphaned file di Storage dan perlu ditangani melalui proses cleanup jika diperlukan.
+
+## 12. Error Handling
 
 Error handling terpusat berada di `app.js`.
 
@@ -320,11 +450,18 @@ Error malformed JSON ditangani secara khusus dan mengembalikan `400 Bad Request`
 
 Untuk error lainnya, backend menggunakan `statusCode` yang diberikan service atau middleware.
 
+Error upload juga ditangani secara khusus:
+
+- Multer error dikembalikan sebagai `400 Bad Request`.
+- File yang melebihi batas input 10 MB menghasilkan pesan `Image file must not exceed 10 MB`.
+- Format MIME type yang tidak didukung menghasilkan `400 Bad Request`.
+- Gambar yang tidak valid atau gagal diproses ditolak oleh image processing utility.
+
 Error server dengan status 500 atau lebih tidak mengekspos detail exception kepada client.
 
 Jangan mengembalikan stack trace, detail SQL, secret, password hash, atau refresh token hash pada production.
 
-## 12. Validation and Security Checklist
+## 13. Validation and Security Checklist
 
 Sebelum API dianggap siap:
 
@@ -339,15 +476,21 @@ Sebelum API dianggap siap:
 - Jangan log password, token, cookie, atau secret.
 - Terapkan authentication dan ownership check pada seluruh endpoint privat.
 - Pastikan credential database dan Storage tidak pernah diekspos ke frontend.
+- Validasi format dan ukuran file upload sebelum diproses.
+- Validasi konten gambar menggunakan Sharp, bukan hanya MIME type.
+- Kompres gambar di backend dengan batas output maksimal 1 MB.
+- Terapkan ownership check pada upload dan penghapusan gambar.
+- Jangan mengekspos Supabase Secret Key ke frontend.
+- Simpan storage path pada database, bukan public URL.
 
-## 13. Environment Variables
+## 14. Environment Variables
 
 Environment variables disimpan di `.env` dan tidak boleh di-commit ke repository.
 
 Contoh konfigurasi:
 
 ```env
-PORT=5000
+PORT=8000
 NODE_ENV=development
 
 DATABASE_URL=your_database_url
@@ -357,28 +500,42 @@ JWT_ACCESS_SECRET=your_access_secret
 JWT_REFRESH_SECRET=your_refresh_secret
 JWT_ACCESS_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=14d
+
+SUPABASE_URL=your_supabase_url
+SUPABASE_SECRET_KEY=your_supabase_secret_key
+SUPABASE_ARTICLE_IMAGE_STORAGE_BUCKET=article-images
+SUPABASE_PROFILE_IMAGE_STORAGE_BUCKET=profile-images
+
+CLIENT_URL=http://localhost:5173
 ```
+
+Keterangan:
+
+- `SUPABASE_URL`: URL project Supabase.
+- `SUPABASE_SECRET_KEY`: Secret key untuk akses Supabase dari backend.
+- `SUPABASE_ARTICLE_IMAGE_STORAGE_BUCKET`: Nama bucket untuk cover image artikel.
+- `SUPABASE_PROFILE_IMAGE_STORAGE_BUCKET`: Nama bucket untuk foto profil pengguna.
 
 Gunakan `.env.example` sebagai template tanpa credential asli.
 
-Jangan pernah membagikan atau meng-commit isi `.env`.
+Jangan pernah membagikan atau meng-commit isi `.env`. Supabase Secret Key hanya boleh digunakan pada backend dan tidak boleh dikirim ke frontend.
 
-## 14. Current Implementation Status
+## 15. Current Implementation Status
 
-| Module         | Status Implementasi     | Status Pengujian                    |
-| -------------- | ----------------------- | ----------------------------------- |
-| Prisma Setup   | Implemented             | Initial migration berhasil          |
-| Authentication | Implemented             | Seluruh simulasi pengujian berhasil |
-| Article CRUD   | Implemented             | Seluruh simulasi pengujian berhasil |
-| Comment CRUD   | Implemented             | Seluruh simulasi pengujian berhasil |
-| Like           | Implemented             | Seluruh simulasi pengujian berhasil |
-| Bookmark       | Implemented             | Seluruh simulasi pengujian berhasil |
-| Image Upload   | Belum diimplementasikan | Belum diuji                         |
-| Image Deletion | Belum diimplementasikan | Belum diuji                         |
+| Module                     | Status Implementasi | Status Pengujian                               |
+| -------------------------- | ------------------- | ---------------------------------------------- |
+| Prisma Setup               | Implemented         | Initial migration berhasil                     |
+| Authentication             | Implemented         | Seluruh simulasi pengujian berhasil            |
+| Article CRUD               | Implemented         | Seluruh simulasi pengujian berhasil            |
+| Comment CRUD               | Implemented         | Seluruh simulasi pengujian berhasil            |
+| Like                       | Implemented         | Seluruh simulasi pengujian berhasil            |
+| Bookmark                   | Implemented         | Seluruh simulasi pengujian berhasil            |
+| Profile Image Upload       | Implemented         | Upload, replace, delete, dan validasi berhasil |
+| Article Cover Image Upload | Implemented         | Upload, replace, delete, dan validasi berhasil |
 
-Status implementasi berarti kode fitur sudah dibuat, bukan berarti seluruh skenario pengujiannya sudah lulus.
+Status implementasi berarti kode fitur sudah dibuat. Status pengujian menunjukkan skenario yang telah dijalankan dan dinyatakan berhasil.
 
-## 15. Development and Migration Policy
+## 16. Development and Migration Policy
 
 - Setiap perubahan schema harus memiliki migration bernama.
 - Commit file migration bersama perubahan kode.

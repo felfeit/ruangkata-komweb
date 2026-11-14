@@ -1,7 +1,8 @@
+
 const { createClient } = require("@supabase/supabase-js");
 
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseKey = process.env.SUPABASE_SECRET_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
   throw new Error("Supabase environment variables are missing");
@@ -15,9 +16,18 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
   },
 });
 
-const storageBucket = process.env.SUPABASE_STORAGE_BUCKET;
+const articleImageBucket =
+  process.env.SUPABASE_ARTICLE_IMAGE_STORAGE_BUCKET;
+
+const profileImageBucket =
+  process.env.SUPABASE_PROFILE_IMAGE_STORAGE_BUCKET;
+
+if (!articleImageBucket || !profileImageBucket) {
+  throw new Error("Supabase storage bucket environment variables are missing");
+}
 
 module.exports = {
   supabase,
-  storageBucket,
+  articleImageBucket,
+  profileImageBucket,
 };
