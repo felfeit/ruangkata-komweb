@@ -92,6 +92,41 @@ async function deleteArticle(req, res, next) {
   }
 }
 
+async function updateCoverImage(req, res, next) {
+  try {
+    const article = await articleService.updateCoverImage(
+      req.params.articleId,
+      req.user.id,
+      req.file,
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Article cover image updated successfully",
+      data: article,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function deleteCoverImage(req, res, next) {
+  try {
+    const result = await articleService.deleteCoverImage(
+      req.params.articleId,
+      req.user.id,
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Article cover image deleted successfully",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   createArticle,
   getPublishedArticles,
@@ -99,4 +134,6 @@ module.exports = {
   getMyArticles,
   updateArticle,
   deleteArticle,
+  updateCoverImage,
+  deleteCoverImage,
 };
