@@ -1,3 +1,4 @@
+const upload = require("../middlewares/upload.middleware");
 const express = require("express");
 const router = express.Router();
 
@@ -10,6 +11,7 @@ router.get("/my", authenticateToken, articleController.getMyArticles);
 
 // Daftar artikel publik
 router.get("/", articleController.getPublishedArticles);
+
 
 // Membuat artikel
 router.post("/", authenticateToken, articleController.createArticle);
@@ -31,6 +33,23 @@ router.delete(
   authenticateToken,
   requireArticleOwner,
   articleController.deleteArticle,
+);
+
+// Upload or replace article cover image
+router.post(
+  "/:articleId/cover-image",
+  authenticateToken,
+  requireArticleOwner,
+  upload.single("image"),
+  articleController.updateCoverImage,
+);
+
+// Delete article cover image
+router.delete(
+  "/:articleId/cover-image",
+  authenticateToken,
+  requireArticleOwner,
+  articleController.deleteCoverImage,
 );
 
 module.exports = router;

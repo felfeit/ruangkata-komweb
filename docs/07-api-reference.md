@@ -346,7 +346,197 @@ Response:
 
 Penghapusan artikel juga menghapus komentar, like, dan bookmark terkait melalui cascade database.
 
-## 5. Comment Endpoints
+### POST `/articles/:articleId/cover-image`
+
+Mengunggah atau mengganti cover image artikel milik user.
+
+Access: Article Owner.
+
+Request:
+
+- Content-Type: `multipart/form-data`
+- Field name: `image`
+- Field type: File
+- Supported formats: JPEG, PNG, WebP.
+
+Success: `200 OK`.
+
+Response:
+
+```json
+{
+  "success": true,
+  "message": "Article cover image updated successfully",
+  "data": {
+    "id": "uuid",
+    "title": "Example Article",
+    "slug": "example-article",
+    "coverImagePath": "articles/article-uuid/image-uuid.webp",
+    "updatedAt": "2026-11-14T10:00:00.000Z",
+    "coverImageUrl": "https://example.supabase.co/storage/v1/object/public/article-images/articles/article-uuid/image-uuid.webp",
+    "imageSize": 250000
+  }
+}
+```
+
+Business rules:
+
+- User harus login.
+- Hanya pemilik artikel yang dapat mengunggah atau mengganti cover image.
+- Article ID berasal dari URL parameter.
+- File dikirim menggunakan field `image`.
+- Format input yang didukung adalah JPEG, PNG, dan WebP.
+- Maksimal ukuran file sebelum diproses adalah 10 MB.
+- Backend melakukan validasi dan kompresi gambar menggunakan Sharp.
+- Gambar hasil pemrosesan dikonversi menjadi WebP dengan ukuran maksimal 1 MB.
+- Dimensi maksimal gambar adalah 1600 × 1200 piksel.
+- Gambar disimpan pada Supabase Storage bucket `article-images`.
+- Database hanya menyimpan storage path, bukan public URL.
+- Ketika mengganti gambar, gambar lama dihapus setelah gambar baru berhasil diunggah dan database berhasil diperbarui.
+
+Possible errors:
+
+| Status | Kondisi                                                                                            |
+| ------ | -------------------------------------------------------------------------------------------------- |
+| 400    | File tidak tersedia, format tidak didukung, atau gambar tidak dapat dikompresi hingga batas ukuran |
+| 401    | Access token tidak valid atau tidak tersedia                                                       |
+| 404    | Artikel tidak ditemukan atau bukan milik user                                                      |
+| 500    | Internal server error                                                                              |
+
+### DELETE `/articles/:articleId/cover-image`
+
+Menghapus cover image dari artikel milik user.
+
+Access: Article Owner.
+
+Request body tidak diperlukan.
+
+Success: `200 OK`.
+
+Response:
+
+```json
+{
+  "success": true,
+  "message": "Article cover image deleted successfully",
+  "data": {
+    "id": "uuid"
+  }
+}
+```
+
+Business rules:
+
+- User harus login.
+- Hanya pemilik artikel yang dapat menghapus cover image.
+- Article ID berasal dari URL parameter.
+- `coverImagePath` pada database diubah menjadi `null`.
+- File gambar dihapus dari Supabase Storage bucket `article-images`.
+
+Possible errors:
+
+| Status | Kondisi                                                                    |
+| ------ | -------------------------------------------------------------------------- |
+| 401    | Access token tidak valid atau tidak tersedia                               |
+| 404    | Artikel tidak ditemukan, bukan milik user, atau cover image tidak tersedia |
+| 500    | Internal server error                                                      |
+
+## 5. User Profile Image Endpoints
+
+### POST `/users/me/profile-image`
+
+Mengunggah atau mengganti foto profil user yang sedang login.
+
+Access: Authenticated.
+
+Request:
+
+- Content-Type: `multipart/form-data`
+- Field name: `image`
+- Field type: File
+- Supported formats: JPEG, PNG, WebP.
+
+Success: `200 OK`.
+
+Response:
+
+```json
+{
+  "success": true,
+  "message": "Profile image updated successfully",
+  "data": {
+    "id": "uuid",
+    "name": "Example User",
+    "username": "example",
+    "profileImagePath": "users/user-uuid/image-uuid.webp",
+    "updatedAt": "2026-11-14T10:00:00.000Z",
+    "profileImageUrl": "https://example.supabase.co/storage/v1/object/public/profile-images/users/user-uuid/image-uuid.webp",
+    "imageSize": 250000
+  }
+}
+```
+
+Business rules:
+
+- User harus login.
+- User ID berasal dari access token.
+- File dikirim menggunakan field `image`.
+- Format input yang didukung adalah JPEG, PNG, dan WebP.
+- Maksimal ukuran file sebelum diproses adalah 10 MB.
+- Backend melakukan validasi dan kompresi gambar menggunakan Sharp.
+- Gambar hasil pemrosesan dikonversi menjadi WebP dengan ukuran maksimal 1 MB.
+- Dimensi maksimal gambar adalah 512 × 512 piksel.
+- Gambar disimpan pada Supabase Storage bucket `profile-images`.
+- Database hanya menyimpan storage path, bukan public URL.
+- Ketika mengganti foto profil, gambar lama dihapus setelah gambar baru berhasil diunggah dan database berhasil diperbarui.
+
+Possible errors:
+
+| Status | Kondisi                                                                                            |
+| ------ | -------------------------------------------------------------------------------------------------- |
+| 400    | File tidak tersedia, format tidak didukung, atau gambar tidak dapat dikompresi hingga batas ukuran |
+| 401    | Access token tidak valid atau tidak tersedia                                                       |
+| 404    | User tidak ditemukan                                                                               |
+| 500    | Internal server error                                                                              |
+
+### DELETE `/users/me/profile-image`
+
+Menghapus foto profil user yang sedang login.
+
+Access: Authenticated.
+
+Request body tidak diperlukan.
+
+Success: `200 OK`.
+
+Response:
+
+```json
+{
+  "success": true,
+  "message": "Profile image deleted successfully",
+  "data": {
+    "id": "uuid"
+  }
+}
+```
+
+Business rules:
+
+- User harus login.
+- User ID berasal dari access token.
+- `profileImagePath` pada database diubah menjadi `null`.
+- File gambar dihapus dari Supabase Storage bucket `profile-images`.
+
+Possible errors:
+
+| Status | Kondisi                                      |
+| ------ | -------------------------------------------- |
+| 401    | Access token tidak valid atau tidak tersedia |
+| 404    | User atau foto profil tidak ditemukan        |
+| 500    | Internal server error                        |
+
+## 6. Comment Endpoints
 
 ### POST `/comments/articles/:articleId`
 
@@ -567,7 +757,7 @@ Possible errors:
 | 404    | Komentar tidak ditemukan atau bukan milik user |
 | 500    | Internal server error                          |
 
-## 6. Like Endpoints
+## 7. Like Endpoints
 
 ### POST `/likes/articles/:articleId`
 
@@ -726,7 +916,7 @@ Possible errors:
 | 404    | Artikel tidak ditemukan atau belum dipublikasikan |
 | 500    | Internal server error                             |
 
-## 7. Bookmark Endpoints
+## 8. Bookmark Endpoints
 
 ### POST `/bookmarks/articles/:articleId`
 
@@ -915,7 +1105,7 @@ Possible errors:
 | 404    | Artikel tidak ditemukan atau belum dipublikasikan |
 | 500    | Internal server error                             |
 
-## 8. Error Response Convention
+## 9. Error Response Convention
 
 Format error umum:
 
@@ -941,7 +1131,7 @@ HTTP status code yang digunakan:
 
 Backend tidak boleh mengekspos stack trace, detail SQL, secret, password hash, atau informasi internal lainnya pada production.
 
-## 9. Current API Implementation Status
+## 10. Current API Implementation Status
 
 | Module   | Endpoint                     | Status      |
 | -------- | ---------------------------- | ----------- |
@@ -967,10 +1157,14 @@ Backend tidak boleh mengekspos stack trace, detail SQL, secret, password hash, a
 | Bookmark | Delete Bookmark              | Implemented |
 | Bookmark | Get My Bookmarks             | Implemented |
 | Bookmark | Get Bookmark Status          | Implemented |
+| User     | Upload Profile Image         | Implemented |
+| User     | Delete Profile Image         | Implemented |
+| Article  | Upload Article Cover Image   | Implemented |
+| Article  | Delete Article Cover Image   | Implemented |
 
 Status `Implemented` menunjukkan endpoint sudah dibuat dalam kode backend. Status tersebut belum berarti seluruh test case telah dijalankan dan dinyatakan lulus.
 
-## 10. API Testing Notes
+## 11. API Testing Notes
 
 Pengujian API dilakukan menggunakan Postman atau Thunder Client sebelum frontend melakukan integrasi.
 
@@ -994,5 +1188,7 @@ Pengujian yang telah berhasil diselesaikan:
 - Comment CRUD: Create, Read, Update, dan Delete.
 - Like: Create Like, Duplicate Like Prevention, Delete Like, Get Like Count, dan Get Like Status.
 - Bookmark: Create Bookmark, Duplicate Bookmark Prevention, Delete Bookmark, Get My Bookmarks, Pagination, Get Bookmark Status, dan User Data Isolation.
+- User Profile Image: Upload Profile Image, Replace Profile Image, Delete Profile Image, dan Image Validation.
+- Article Cover Image: Upload Cover Image, Replace Cover Image, Delete Cover Image, Ownership Validation, dan Image Validation.
 
 Hasil pengujian aktual dicatat berdasarkan endpoint dan skenario yang telah dijalankan.

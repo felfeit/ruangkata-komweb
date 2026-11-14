@@ -1,5 +1,10 @@
 const prisma = require("../config/prisma");
 
+const {
+  uploadImage,
+  deleteImage,
+} = require("./storage.service");
+
 function createError(message, statusCode = 400) {
   const error = new Error(message);
   error.statusCode = statusCode;
@@ -424,6 +429,131 @@ async function deleteArticle(articleId, userId) {
   };
 }
 
+
+async function updateCoverImage(articleId, userId, file) {
+  if (!file) {
+    throw createError("Cover image is required");
+  }
+
+  const article = await prisma.article.findFirst({
+    where: {
+      id: articleId,
+      userId,
+    },
+    select: {
+      id: true,
+      coverImagePath: true,
+    },
+  });
+
+  if (!article) {
+    throw createError("Article not found", 404);
+  }
+
+  // Upload cover image baru.
+  const uploadedImage = await uploadImage(
+    file,
+    "article",
+    articleId,
+  );
+
+  let updatedArticle;
+
+  try {
+    updatedArticle = await prisma.article.update({
+      where: {
+        id: articleId,
+      },
+      data: {
+        coverImagePath: uploadedImage.path,
+      },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        coverImagePath: true,
+        updatedAt: true,
+      },
+    });
+  } catch (error) {
+    // Bersihkan gambar baru jika update database gagal.
+    try {
+      await deleteImage(
+        uploadedImage.path,
+        "article",
+        articleId,
+      );
+    } catch (cleanupError) {
+      console.error("Failed to clean up uploaded cover image:", cleanupError);
+    }
+
+    throw error;
+  }
+
+  // Hapus cover image lama setelah database berhasil diperbarui.
+  if (article.coverImagePath) {
+    try {
+      await deleteImage(
+        article.coverImagePath,
+        "article",
+        articleId,
+      );
+    } catch (error) {
+      console.error("Failed to delete old cover image:", error);
+    }
+  }
+
+  return {
+    ...updatedArticle,
+    coverImageUrl: uploadedImage.url,
+    imageSize: uploadedImage.size,
+  };
+}
+
+async function deleteCoverImage(articleId, userId) {
+  const article = await prisma.article.findFirst({
+    where: {
+      id: articleId,
+      userId,
+    },
+    select: {
+      id: true,
+      coverImagePath: true,
+    },
+  });
+
+  if (!article) {
+    throw createError("Article not found", 404);
+  }
+
+  if (!article.coverImagePath) {
+    throw createError("Cover image not found", 404);
+  }
+
+  await prisma.article.update({
+    where: {
+      id: articleId,
+    },
+    data: {
+      coverImagePath: null,
+    },
+  });
+
+  try {
+    await deleteImage(
+      article.coverImagePath,
+      "article",
+      articleId,
+    );
+  } catch (error) {
+    console.error("Failed to delete cover image from storage:", error);
+  }
+
+  return {
+    id: articleId,
+  };
+}
+
 module.exports = {
   createArticle,
   getPublishedArticles,
@@ -431,4 +561,6 @@ module.exports = {
   getMyArticles,
   updateArticle,
   deleteArticle,
+  updateCoverImage,
+  deleteCoverImage,
 };
